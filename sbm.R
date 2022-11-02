@@ -15,6 +15,9 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
   communities_index_b = head( cumsum(c(1,nodes_partition)), -1)
   communities_index_e = cumsum(nodes_partition)
   
+  
+  ### Computation of the adjacency matrix ###
+  
   # Computation of the adjacency matrix block by block when the graph is undirected
   if (directed == FALSE) {
     for (c1 in 1:number_community) {
@@ -37,13 +40,32 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
       }
     }    
   }
-  
+  # if include self loops
   if (!loops){
     diag(adjacency)=0
   }
   
   
+  
+  ### Computation of the enrichment ###
+  
+  # mean of similarity of nodes in the same community (assuming assortative SBM)
+  enrichment = sum(choose(nodes_partition, 2) * diag(block_prob)) / sum(choose(nodes_partition, 2)) 
+  
+  # Denominator
+  enrichment_low = c()                 
+  for (c1 in 1:number_community-1) {
+    for (c2 in (c1+1):number_community) {
+      enrichment_low = append(enrichment_low, nodes_partition[c1]*nodes_partition[c2]*block_prob[c1,c2])
+    }
+  }
+  enrichment_low = (sum(enrichment_low) + sum(choose(nodes_partition, 2) * diag(block_prob))) / choose(number_nodes,2)
+  
+  
+  enrichment = enrichment / enrichment_low
+    
   graph = graph_from_adjacency_matrix(adjacency, 'undirected')
+  
   
   # Compute degrees vector
   degrees = colSums(adjacency)
@@ -131,8 +153,8 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
   E1_l_graph = E_l_graph %*% E_l_graph - E_l_graph
   
   # Return the properties of the network
-  return_list = list(number_nodes, nodes_partition, block_prob, adjacency, graph, degrees, edges, number_edges, node_edge, l_graph, D_l_graph, E_l_graph, E1_l_graph)
-  names(return_list) = c('number_nodes', 'nodes_partition', 'block_prob', 'adjacency','graph', 'degrees', 'edges','number_edges', 'node_edge', 'line_graph', 'D_line_graph', 'E_line_graph', 'E1_line_graph')
+  return_list = list(number_nodes, nodes_partition, block_prob, adjacency, graph, degrees, edges, number_edges, node_edge, l_graph, D_l_graph, E_l_graph, E1_l_graph, enrichment)
+  names(return_list) = c('number_nodes', 'nodes_partition', 'block_prob', 'adjacency','graph', 'degrees', 'edges','number_edges', 'node_edge', 'line_graph', 'D_line_graph', 'E_line_graph', 'E1_line_graph', 'enrichment')
   return(return_list)
 }
 
@@ -154,9 +176,18 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
 
 
 
-RandomSBM <- function(number_nodes = 100, inter=c(0.01, 0.2), intra = c(0.4,0.6), mode = 'Assortative',
-                      number_blocks=floor(sqrt(number_nodes)), prob_mix = 0.5, mode_node = 'random'){
+RandomSBM <- function(number_nodes = 100,
+                      inter=c(0.01, 0.2),
+                      intra = c(0.4,0.6),
+                      mode = 'Assortative',
+                      number_blocks=floor(sqrt(number_nodes)),
+                      prob_mix = 0.5, # Probability of having a assortative community in a mixed model 
+                      mode_node = 'random'){
 
+  # Returns a SBM with approximately number_nodes nodes and  number_blocks blocks
+  # the SBM can be 'Assortative', 'Disassortative' or 'Mixed'
+  # if mode_node = 'random' the node distribution follows a poisson law with mean number_nodes/number_blocks 
+  
   if(mode == 'Assortative'){
   blockprob = matrix(runif(number_blocks*number_blocks,inter[1], inter[2]), number_blocks, number_blocks)
   blockprob[lower.tri(blockprob)] <- t(blockprob)[lower.tri(blockprob)]
@@ -198,5 +229,75 @@ RandomSBM <- function(number_nodes = 100, inter=c(0.01, 0.2), intra = c(0.4,0.6)
   
   return(sample_network)
   
+}
+
+
+
+
+
+labelize <- function(incidence, edge_membership, mode='most'){
+  # Compute the node-membership given a edge clustering 
+  # mode='most': returns the membership of the community with most adjacent edges
+  # mode == 'multi': retuns the mixed membership as a proportion of edges adjacent to the vertex
+  
+  n_vertex = dim(incidence)[1]
+  n_community = max(edge_membership)
+  
+  
+    if(mode == 'multi'){
+      node_membership = list()
+      for (v in 1:n_vertex) {
+        score = c()
+        edges_v = which(incidence[v,]!=0)
+        
+        for (e in edges_v){
+          score = append(score,edge_membership[e])
+        }
+        
+        proportion = rep(0, n_community)
+        for(c in 1:n_community){
+          proportion[c] = length(which(score == c)) / length(score)
+        }
+        
+        list_v = list(proportion)
+        node_membership = append(node_membership, list_v)
+      }
+    }
+  
+  
+  if (mode == 'most'){
+    node_membership = rep(0, n_vertex)
+    for (v in 1:n_vertex) {
+      score = c()
+      edges_v = which(incidence[v,]!=0)
+      for (e in edges_v){
+        score = append(score,edge_membership[e])
+      }
+      label = as.integer(names(sort(table(score),decreasing=TRUE)[1]))
+      node_membership[v]=label
+    }
   }
+  
+  return(node_membership)
+}
+
+
+
+
+
+Color_Adjacency <- function(adjacency, edge_list, edge_membership){
+  # Assign an integer to the non zero elements of the adjacency matrix
+  # corresponding the community of the edges
+  n_nodes = length(edge_membership)
+  n_vertex = dim(adjacency)[1]
+  colored = matrix(0,n_vertex, n_vertex)
+  
+  for(e in 1:n_nodes){
+    i = edge_list[e,][1]
+    j = edge_list[e,][2]
+    colored[i,j] = edge_membership[e]
+    colored[j,i] = edge_membership[e]
+  }
+  return(colored)
+}
 
