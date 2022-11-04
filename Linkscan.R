@@ -9,11 +9,12 @@ Jaccard <- function(x, y){
 
 
 
-Link_similarities <- function(graph){
+Link_similarities <- function(graph, selfloops = TRUE){
   # Given a graph return the weighted line graph matrix 
   # (adjacency of the LinkSpace graph)
   # where the weights are given by the Jaccard similarity
   # of the two endpoints of the adjacent edges
+  # Self loops if we consider the similarity are define when both edges are the same
   
   adjacency = as.matrix(as_adjacency_matrix(graph))
   n_nodes = dim(adjacency)[1]
@@ -91,6 +92,8 @@ Link_similarities <- function(graph){
   }
   
   
+  if(selfloops){LS_weights= LS_weights + diag(1, dim(LS_weights)[1], dim(LS_weights)[2])}
+  
   # Return the LinkScan weights matrix
   # and igraph object with the corresponding adjacency
   LS_graph = graph_from_adjacency_matrix(LS_weights, mode = 'undirected', weighted = TRUE)
@@ -110,11 +113,12 @@ StructuralClustering <- function(graph, epsilon, mu=0.7){
   # Get the LinkSpace weights matrix and LinkScan Igraph
   LinkSpace = Link_similarities(graph)
   adjacency_weigthed = LinkSpace$LS_weights
+  n_vertex = dim(adjacency_weigthed)[1]
+  
   LS_graph = LinkSpace$LS_graph
   
   #Declare the vector of degree (needed for the selection functions)
   degree = degree(LS_graph)
-  n_vertex = dim(adjacency_weigthed)[1]
   
   # Declare the vector of selection functions
   selection = rep(0, n_vertex)
@@ -156,10 +160,13 @@ StructuralClustering <- function(graph, epsilon, mu=0.7){
   # vector of membership of the LS-vertices (edges of original graph)
   membership = rep(0, n_vertex)
   
-  for (v in sort(unclassified)){ #for all unclassified v
+  while(length(unclassified) !=0 ){
+    v = unclassified[1]
     if((selection[v] > mu)){ # if v is a core node
+      print(v)
       clusterID=clusterID+1 # generate a new clusterID
-      cluster_v = c() # generate a new cluster
+      cluster_v = c(v) # generate a new cluster
+      unclassified = unclassified[unclassified != v ] # remove v from unclassified
       Q = unique(as.integer(N_eps[v,])) #add N_eps(v) to a queue Q; uniqe to avoid redondancy in Q
       
         while(length(Q) != 0 ) { #While Q!=0
