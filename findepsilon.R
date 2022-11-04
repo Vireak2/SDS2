@@ -32,7 +32,7 @@ similarity_chart <- function(LS_weigths, fraction_nodes = 1, mu=0.7){
 
 
 
-find_knee <- function(x, y, n_intervals, threshold = 0){
+find_knee <- function(x, y, n_max, percent_inter = 0.1){
   # Returns the points of the function y=f(x)
   # that maximize the amplitude of the 1st derivative 
   # n_intervals: cut x into n_intervals equal size pieces and return the maximum on each intervals
@@ -41,23 +41,27 @@ find_knee <- function(x, y, n_intervals, threshold = 0){
   
   deriv1 = diff(y)/diff(x) # first derivative
   deriv2 = diff(deriv1)/diff(x[-1]) # second derivative (useless here)
-  indices = length(x)
-  chunk_size = floor(length(x)/n_intervals)
+  n_indices = length(x)
+  radius_inter = floor(percent_inter * n_indices)
   
   xmax=c()
   ymax=c()
   
-  for (i in 1:n_intervals) {
+  domain = 1:length(x)
+  for (k in 1:n_max) {
     # look for the max of |f'(x)| in the i-th interval
-    max_deriv1 = max( abs( deriv1[((i-1)*chunk_size+1) : min(i*chunk_size, length(deriv2))] ) )
+    max_deriv1 = max( abs( deriv1[domain] ) )
     
-    x_i = which.max(abs(deriv1[((i-1)*chunk_size+1):min(i*chunk_size, length(deriv2))])) + chunk_size*(i-1)
-    y_i = y[x_i]
+    i_max = which.max(abs(deriv1[domain]))
+    x_i = x[i_max]
+    y_i = y[i_max]
     
-    if(max_deriv1 >threshold ){
+    l_bound = max(i_max - radius_inter, 1)
+    u_bound = min(i_max + radius_inter, length(domain))
+    domain = domain[-(l_bound:u_bound)]
+    
     xmax = append(xmax, x_i)
     ymax = append(ymax, y_i)
-    }
     
   }
   return_list = list(xmax, ymax)
