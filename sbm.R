@@ -166,7 +166,35 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
 
 
 
-
+edges_from_adjacency <- function(adjacency, directed = FALSE){
+  number_nodes = dim(adjacency)[1]
+  # Declare the edge set
+  edges = matrix(0, 0, 2)
+  
+  # Computation of the edge set undirected
+  if (directed == FALSE) {
+    for (i in 1:number_nodes) {
+      for (j in i:number_nodes) {
+        if (adjacency[[i,j]] != 0){
+          edges = rbind(edges, c(i,j))
+        }
+      }
+    }
+  }
+  
+  # Computation of the edge set directed
+  if (directed == TRUE) {
+    for (i in 1:number_nodes) {
+      for (j in 1:number_nodes) {
+        if (adjacency[[i,j]] != 0){
+          edges = rbind(edges, c(i,j))
+        }
+      }
+    }
+  }
+  
+  return(edges)
+}
 
 
 

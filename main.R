@@ -3,19 +3,19 @@ library(modMax)
 library(network)
 library(plot.matrix)
 library(KneeArrower)
-
+library(xtable)
 
 # Test with undirected network
 sample_network = RandomSBM(number_nodes=100,
                            mode = 'Assortative', #Try mode = 'Disassortative', 'Mixed'
-                           number_blocks = 3)
+                           number_blocks = 4)
 plot(sample_network$adjacency)
 igraph = sample_network$graph
 
 
 
 ### Link community detection with link density ###
-lm <- getLinkCommunities(sample_network$edges)
+lm <- getLinkCommunities(sample_network$edges,  hcmethod = 'single')
 lm
 plot(lm, type = "graph")
 
@@ -116,8 +116,30 @@ modularity(igraph, v_membership_e)
 
 
 
+# readRDS("not_so_assortative.RData")
+
+#Tiebow
+tiebow=matrix(c(0,1,1,0,0, 1,0,1,0,0, 1,1,0,1,1, 0,0,1,0,1, 0,0,1,1,0), 5, 5)
+tiebow_edges = edges_from_adjacency(tiebow)
+tiebow_igraph = graph_from_adjacency_matrix(tiebow, 'undirected')
+plot(tiebow_igraph,
+     vertex.size = 30,
+     edge.width=7,
+     vertex.color = 'white')
+tiebow_linkcomm = getLinkCommunities(tiebow_edges,  hcmethod = 'single')
+plot(tiebow_linkcomm, type='graph')
 
 
+#dendrogram
+tiebow_jaccard = Link_similarities(tiebow_igraph,selfloops = FALSE)$LS_weights
+edgesnames= c('(1,2)', '(1,3)', '(2,3)', '(3,4)', '(3,5)', '(4,5)')
+tiebow_jaccard = data.frame(tiebow_jaccard, row.names = edgesnames)
+colnames(tiebow_jaccard) = edgesnames
+as.dist(tiebow_jaccard)
+tiebow_dist = as.dist(-tiebow_jaccard)
+plot(hclust(tiebow_dist),
+     main = '',
+     axes = FALSE)
 
 # plot for overlaping
 bp = matrix(c(1, .2, 0, .2,0.4,.2, 0,.2,1), 3,3)

@@ -163,9 +163,9 @@ StructuralClustering <- function(graph, epsilon, mu=0.7){
   while(length(unclassified) !=0 ){
     v = unclassified[1]
     if((selection[v] > mu)){ # if v is a core node
-      print(v)
       clusterID=clusterID+1 # generate a new clusterID
       cluster_v = c(v) # generate a new cluster
+      membership[v] = clusterID
       unclassified = unclassified[unclassified != v ] # remove v from unclassified
       Q = unique(as.integer(N_eps[v,])) #add N_eps(v) to a queue Q; uniqe to avoid redondancy in Q
       
@@ -204,8 +204,67 @@ StructuralClustering <- function(graph, epsilon, mu=0.7){
   
   
   
-  StructClust=list(LS_graph,adjacency_weigthed, N_eps, selection, clusters, neutral, membership)
-  names(StructClust)=c('LS_graph', 'Weights','EpsilonNeighbors', 'SelectionFunction', 'Clusters', 'NeutralCluster', 'membership')
+  StructClust=list(LS_graph,adjacency_weigthed, N_eps, selection, clusters, neutral, membership, epsilon)
+  names(StructClust)=c('LS_graph', 'Weights','EpsilonNeighbors', 'SelectionFunction', 'Clusters', 'NeutralCluster', 'membership', 'epsilon')
   return(StructClust)
+}
+
+
+
+LinkScan <- function(sample_network, mu =0.7, n_eps = 20, n_critic = 4, poly_approx = FALSE){
+  # Get the LS graph and adjacency
+  LinkSpace = Link_similarities(sample_network$graph)
+  LS_graph = LinkSpace$LS_graph
+  LS_adjacency = LinkSpace$LS_weights
+  
+  
+  ### Try to find a epsilon ###
+  # 100mu-percentile lowest similarity
+  PLS = similarity_chart(LS_adjacency, mu = mu)
+  index = 1:length(PLS)
+  plot(index, PLS)
+  
+  
+  if(poly_approx){
+    # Use cubic approximation to get a smoother function
+    approxPLS = lm(PLS~index + I(index^2) + I(index^3))
+    approxPLS_line = predict(approxPLS)[index]
+    # plot the curve
+    lines(approxPLS_line, col="green")
+    # plot the the new found epsilon
+    knees = find_knee(index, approxPLS_line, n_max=n_critic)
+    eps_poly_x = knees$x
+    eps_poly_y = knees$y
+    points(eps_poly_x, eps_poly_y, col="blue", pch=20, cex = 2)
+  }
+  
+  
+  # Use own function to find the knee points of PLS
+  knees3 = find_knee(index, PLS, n_max=n_critic)
+  eps_x = knees3$x
+  eps_y = knees3$y
+  points(eps_x, eps_y, col="orange", pch=20, cex = 2)
+  
+  
+  # Choose epsilons in the interval
+  possibles_eps = seq(from=min(PLS), to=max(PLS), length.out=n_eps)
+  possibles_eps = sort(append(possibles_eps, eps_y))
+  line_graph = graph_from_adjacency_matrix(sample_network$line_graph,
+                                           mode = 'undirected',
+                                           diag = FALSE)
+  modularity=c()
+  # Try all the epsilons
+  for (epsilon in possibles_eps) {
+    LS_clustering = StructuralClustering(sample_network$graph, epsilon, mu = mu)
+    mod = modularity(line_graph, LS_clustering$membership)
+    modularity = append(modularity, mod)
+  }
+  
+  # Get the best one
+  max_mod = max(modularity)
+  epsilon = possibles_eps[which.max(modularity)]
+  LS_clustering = StructuralClustering(sample_network$graph, epsilon, mu = mu)
+  
+  return(LS_clustering)
 }
 
