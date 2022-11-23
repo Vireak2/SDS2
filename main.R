@@ -4,12 +4,19 @@ library(network)
 library(plot.matrix)
 library(KneeArrower)
 library(xtable)
-
+library(combinat)
 # Test with undirected network
-sample_network = RandomSBM(number_nodes=100,
-                           mode = 'Assortative', #Try mode = 'Disassortative', 'Mixed'
-                           number_blocks = 4)
-plot(sample_network$adjacency)
+#n= 256
+#K = 2,5,10
+sample_network = RandomSBM(number_nodes=256,
+                           mode = 'Disassortative', #Try mode = 'Disassortative', 'Mixed', 'Overlap'
+                           number_blocks = 2)
+#sample_network = readRDS("256n2K_assortative.rds")
+#saveRDS(sample_network, file = "256n2K_disassortative.rds")
+colored_adj = sample_network$colored_adjacency
+plot(colored_adj,
+     col = topo.colors,
+     main = 'Adjacency matrix')
 igraph = sample_network$graph
 
 
@@ -25,7 +32,7 @@ node_centrality
 # Community connectedness scores:
 corectness <- getCommunityConnectedness(lm)
 corectness
-
+lm$pdmax
 
 # Often lm cut a 1 and gives no information, new_lm cut a bit lower and gives a better result
 new_lm = newLinkCommsAt(lm, cutat = lm$pdmax*.99)
@@ -61,31 +68,46 @@ membership(cc)
 membership(cd)
 membership(ce)
 
-# plots of colored edges
-plot(igraph, vertex.label=NA, edge.color=membership(cc), vertex.size=3, edge.width=2,
-     main = 'link communities with C method', vertex.color = 'gray')
-plot(igraph, vertex.label=NA, edge.color=membership(cd), vertex.size=3, edge.width=2,
-     main = 'link communities with D method', vertex.color = 'gray')
-plot(igraph, vertex.label=NA, edge.color=membership(ce), vertex.size=3, edge.width=2,
-     main = 'link communities with E method', vertex.color = 'gray')
-
-
 # Further plots for E
-v_membership_e = labelize(sample_network$node_edge, membership(ce), mode='most')
-plot(igraph,
-     vertex.label=NA,
-     vertex.color=v_membership_e,
-     vertex.size=10,
-     edge.width=1,
-     edge.color=membership(ce),
-     main = 'vertex clustering E method')
-colored_e = Color_Adjacency(sample_network$adjacency, sample_network$edges,
+colored_c = Color_Adjacency(sample_network$adjacency,
+                            sample_network$edges,
+                            membership(cc))
+colored_d = Color_Adjacency(sample_network$adjacency,
+                            sample_network$edges,
+                            membership(cd))
+colored_e = Color_Adjacency(sample_network$adjacency,
+                            sample_network$edges,
                             membership(ce))
+plot(colored_c, col = topo.colors)
+plot(colored_d, col = topo.colors)
 plot(colored_e, col = topo.colors)
 
 
-# mixed membership plot
+# mixed membership
+mixed_membership_c = labelize(sample_network$node_edge, membership(cc), mode='multi')
+mixed_membership_d = labelize(sample_network$node_edge, membership(cd), mode='multi')
 mixed_membership_e = labelize(sample_network$node_edge, membership(ce), mode='multi')
+
+plot(igraph,
+     vertex.label=NA,
+     vertex.shape="pie",
+     vertex.pie=mixed_membership_c,
+     vertex.size=10,
+     edge.width=1,
+     edge.color=membership(cc),
+     col = topo.colors,
+     main = 'mixed membership C method')
+
+plot(igraph,
+     vertex.label=NA,
+     vertex.shape="pie",
+     vertex.pie=mixed_membership_d,
+     vertex.size=10,
+     edge.width=1,
+     edge.color=membership(cd),
+     col = topo.colors,
+     main = 'mixed membership D method')
+
 plot(igraph,
      vertex.label=NA,
      vertex.shape="pie",
@@ -114,9 +136,19 @@ modularity(igraph, v_membership_e)
 
 
 
+expected = expected_communities(sample_network, TRUE)
+norm(expected - number_communities(mixed_membership_c), type="2")
+norm(expected - number_communities(mixed_membership_d), type="2")
+norm(expected - number_communities(mixed_membership_e), type="2")
 
 
-# readRDS("not_so_assortative.RData")
+
+#misclassification
+misclassification_edges(sample_network, colored_e)
+
+
+
+
 
 #Tiebow
 tiebow=matrix(c(0,1,1,0,0, 1,0,1,0,0, 1,1,0,1,1, 0,0,1,0,1, 0,0,1,1,0), 5, 5)

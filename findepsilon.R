@@ -32,7 +32,7 @@ similarity_chart <- function(LS_weigths, fraction_nodes = 1, mu=0.7){
 
 
 
-find_knee <- function(x, y, n_max, percent_inter = 0.1){
+find_knee <- function(x, y, n_max, percent_inter = 0.05){
   # Returns the points of the function y=f(x)
   # that maximize the amplitude of the 1st derivative 
   # n_max : number of maximums returned

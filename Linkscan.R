@@ -9,7 +9,7 @@ Jaccard <- function(x, y){
 
 
 
-Link_similarities <- function(graph, selfloops = TRUE){
+Link_similarities <- function(graph, selfloops = TRUE, star= FALSE, alpha = 0, beta = 1){
   # Given a graph return the weighted line graph matrix 
   # (adjacency of the LinkSpace graph)
   # where the weights are given by the Jaccard similarity
@@ -97,6 +97,38 @@ Link_similarities <- function(graph, selfloops = TRUE){
   # Return the LinkScan weights matrix
   # and igraph object with the corresponding adjacency
   LS_graph = graph_from_adjacency_matrix(LS_weights, mode = 'undirected', weighted = TRUE)
+  
+  
+  
+  
+  
+  
+  ### Sampling ###
+  if(star == TRUE){
+    n_LS_vertices = dim(LS_weights)[1]
+    if(alpha == 0){
+      alpha = mean(degree(graph, mode = 'out', loops =TRUE))*2
+    }
+    
+    LS_degrees = degree(LS_graph, mode = 'out', loops =TRUE)
+    LS_star_weights = LS_weights
+    
+    for(v in 1:n_LS_vertices){
+      nv = alpha + beta*log(LS_degrees[v])
+      if(nv < LS_degrees[v]){
+        neighbors = which(LS_weights[v,] != 0)
+        sampled = sample(neighbors, size = floor(nv))
+        LS_star_weights[v, -sampled] = 0
+        LS_star_weights[-sampled, v] = 0
+      }
+    }
+    LS_weights = LS_star_weights
+    LS_graph = graph_from_adjacency_matrix(LS_weights, mode = 'undirected', weighted = TRUE)
+  }
+  
+  
+  
+  
   return_list = list(LS_graph, LS_weights)
   names(return_list) = c('LS_graph', 'LS_weights')
   return(return_list)
@@ -106,19 +138,17 @@ Link_similarities <- function(graph, selfloops = TRUE){
 
 
 
-StructuralClustering <- function(graph, epsilon, mu=0.7){
+
+
+StructuralClustering <- function(adjacency_weigthed, LS_graph, epsilon, mu=0.7){
   # Compute the selections function and the epsilon neighbors of the LinkSpace graph
   # Then apply the Algorithm 3 'StructuralClustering' with parameters epsilon and mu
   
   # Get the LinkSpace weights matrix and LinkScan Igraph
-  LinkSpace = Link_similarities(graph)
-  adjacency_weigthed = LinkSpace$LS_weights
   n_vertex = dim(adjacency_weigthed)[1]
   
-  LS_graph = LinkSpace$LS_graph
-  
   #Declare the vector of degree (needed for the selection functions)
-  degree = degree(LS_graph)
+  degree = degree(LS_graph, mode = 'out', loops = TRUE)
   
   # Declare the vector of selection functions
   selection = rep(0, n_vertex)
@@ -211,9 +241,17 @@ StructuralClustering <- function(graph, epsilon, mu=0.7){
 
 
 
-LinkScan <- function(sample_network, mu =0.7, n_eps = 20, n_critic = 4, poly_approx = FALSE){
+LinkScan <- function(sample_network,
+                     mu =0.7,
+                     n_eps = 20,
+                     n_critic = 4,
+                     poly_approx = FALSE,
+                     star= FALSE,
+                     alpha = 0,
+                     beta = 1){
+  
   # Get the LS graph and adjacency
-  LinkSpace = Link_similarities(sample_network$graph)
+  LinkSpace = Link_similarities(sample_network$graph, selfloops = TRUE, star = star, alpha, beta)
   LS_graph = LinkSpace$LS_graph
   LS_adjacency = LinkSpace$LS_weights
   
@@ -255,7 +293,7 @@ LinkScan <- function(sample_network, mu =0.7, n_eps = 20, n_critic = 4, poly_app
   modularity=c()
   # Try all the epsilons
   for (epsilon in possibles_eps) {
-    LS_clustering = StructuralClustering(sample_network$graph, epsilon, mu = mu)
+    LS_clustering = StructuralClustering(LS_adjacency, LS_graph, epsilon, mu = mu)
     mod = modularity(line_graph, LS_clustering$membership)
     modularity = append(modularity, mod)
   }
@@ -263,7 +301,7 @@ LinkScan <- function(sample_network, mu =0.7, n_eps = 20, n_critic = 4, poly_app
   # Get the best one
   max_mod = max(modularity)
   epsilon = possibles_eps[which.max(modularity)]
-  LS_clustering = StructuralClustering(sample_network$graph, epsilon, mu = mu)
+  LS_clustering = StructuralClustering(LS_adjacency, LS_graph, epsilon, mu = mu)
   
   return(LS_clustering)
 }

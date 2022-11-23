@@ -10,6 +10,8 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
   
   # Declare the adjacency matrix
   adjacency = matrix(0, number_nodes, number_nodes)
+  colored_adj = matrix(0, number_nodes, number_nodes)
+  membership_index = 0
   
   # Indices that correspond to the beginning and ending of nodes communities in the adjacency matrix
   communities_index_b = head( cumsum(c(1,nodes_partition)), -1)
@@ -22,20 +24,26 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
   if (directed == FALSE) {
     for (c1 in 1:number_community) {
       for (c2 in c1:number_community) {
+        membership_index = 1 + membership_index
         nc1=nodes_partition[c1]; nc2=nodes_partition[c2]
         adj_c1c2 = matrix(rbinom(nc1*nc2, 1, block_prob[[c1,c2]]), nc1, nc2)
+        colored_adj_c1c2 = adj_c1c2 * membership_index
         adjacency[communities_index_b[c1]:communities_index_e[c1], communities_index_b[c2]:communities_index_e[c2]] = adj_c1c2
+        colored_adj[communities_index_b[c1]:communities_index_e[c1], communities_index_b[c2]:communities_index_e[c2]] = colored_adj_c1c2
       }
     }
     adjacency[lower.tri(adjacency)] <- t(adjacency)[lower.tri(adjacency)]
+    colored_adj[lower.tri(adjacency)] <- t(colored_adj)[lower.tri(adjacency)]
   }
   
   # Computation of the adjacency matrix block by block when the graph is directed
   if (directed == TRUE) {
     for (c1 in 1:number_community) {
       for (c2 in 1:number_community) {
+        membership_index = 1 + membership_index
         nc1=nodes_partition[c1]; nc2=nodes_partition[c2]
         adj_c1c2 = matrix(rbinom(nc1*nc2, 1, block_prob[[c1,c2]]), nc1, nc2)
+        colored_adj_c1c2 = adj_c1c2 * membership_index
         adjacency[communities_index_b[c1]:communities_index_e[c1], communities_index_b[c2]:communities_index_e[c2]] = adj_c1c2
       }
     }    
@@ -153,8 +161,8 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
   E1_l_graph = E_l_graph %*% E_l_graph - E_l_graph
   
   # Return the properties of the network
-  return_list = list(number_nodes, nodes_partition, block_prob, adjacency, graph, degrees, edges, number_edges, node_edge, l_graph, D_l_graph, E_l_graph, E1_l_graph, enrichment)
-  names(return_list) = c('number_nodes', 'nodes_partition', 'block_prob', 'adjacency','graph', 'degrees', 'edges','number_edges', 'node_edge', 'line_graph', 'D_line_graph', 'E_line_graph', 'E1_line_graph', 'enrichment')
+  return_list = list(number_nodes, nodes_partition, block_prob, adjacency, graph, degrees, edges, number_edges, node_edge, l_graph, D_l_graph, E_l_graph, E1_l_graph, enrichment, colored_adj)
+  names(return_list) = c('number_nodes', 'nodes_partition', 'block_prob', 'adjacency','graph', 'degrees', 'edges','number_edges', 'node_edge', 'line_graph', 'D_line_graph', 'E_line_graph', 'E1_line_graph', 'enrichment', 'colored_adjacency')
   return(return_list)
 }
 
@@ -246,6 +254,12 @@ RandomSBM <- function(number_nodes = 100,
     blockprob[upper.tri(blockprob)] <- t(blockprob)[upper.tri(blockprob)]
   }
   
+  if(mode == 'Overlap'){
+    blockprob = matrix(runif(number_blocks*number_blocks,0.01, 0.1), number_blocks, number_blocks)
+    diag(blockprob) = runif(number_blocks, intra[1], intra[2])
+    blockprob[,number_blocks] = runif(number_blocks, 0.3, 0.4)
+    blockprob[lower.tri(blockprob)] <- t(blockprob)[lower.tri(blockprob)]
+  }
   
   if(mode_node == 'random'){
   nodesdistr = rpois(number_blocks, number_nodes/number_blocks)
