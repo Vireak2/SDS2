@@ -304,7 +304,7 @@ LinkScan <- function(sample_network,
     LS_clustering = StructuralClustering(linksim$LS_weights, linksim$LS_graph, epsilon, mu = mu)
     mod = modularity(line_graph, LS_clustering$membership)
     
-    if(mod > max(modularity)){
+    if(mod > max(modularity, 0)){
       best_clustering = LS_clustering
     }
     
