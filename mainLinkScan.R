@@ -10,7 +10,7 @@ library(akmedoids)
 
 sample_network = RandomSBM(number_nodes=100,
                            mode = 'Assortative',
-                           number_blocks = 3)
+                           number_blocks = 2)
 
 plot(sample_network$adjacency)
 igraph = sample_network$graph

@@ -104,7 +104,7 @@ Link_similarities <- function(graph, selfloops = TRUE, star= FALSE, alpha = 0, b
   
   
   ### Sampling ###
-  if(star == TRUE){
+  if(star){
     n_LS_vertices = dim(LS_weights)[1]
     if(alpha == 0){
       alpha = mean(degree(graph, mode = 'out', loops =TRUE))*2
@@ -125,7 +125,6 @@ Link_similarities <- function(graph, selfloops = TRUE, star= FALSE, alpha = 0, b
     LS_weights = LS_star_weights
     LS_graph = graph_from_adjacency_matrix(LS_weights, mode = 'undirected', weighted = TRUE)
   }
-  
   
   
   
@@ -234,8 +233,8 @@ StructuralClustering <- function(adjacency_weigthed, LS_graph, epsilon, mu=0.7){
   
   
   
-  StructClust=list(LS_graph,adjacency_weigthed, N_eps, selection, clusters, neutral, membership, epsilon)
-  names(StructClust)=c('LS_graph', 'Weights','EpsilonNeighbors', 'SelectionFunction', 'Clusters', 'NeutralCluster', 'membership', 'epsilon')
+  StructClust=list(LS_graph, N_eps, selection, clusters, neutral, membership, epsilon)
+  names(StructClust)=c('LS_graph','EpsilonNeighbors', 'SelectionFunction', 'Clusters', 'NeutralCluster', 'membership', 'epsilon')
   return(StructClust)
 }
 
@@ -244,29 +243,25 @@ StructuralClustering <- function(adjacency_weigthed, LS_graph, epsilon, mu=0.7){
 LinkScan <- function(sample_network,
                      mu =0.7,
                      n_eps = 20,
-                     n_critic = 4,
+                     n_critic = 5,
                      poly_approx = FALSE,
                      star= FALSE,
                      alpha = 0,
                      beta = 1){
   
   # Get the LS graph and adjacency
-  LinkSpace = Link_similarities(sample_network$graph, selfloops = TRUE, star = star, alpha, beta)
-  LS_graph = LinkSpace$LS_graph
-  LS_adjacency = LinkSpace$LS_weights
-  
+  linksim = Link_similarities(sample_network$graph, selfloops = TRUE, star, alpha, beta)
   
   ### Try to find a epsilon ###
   # 100mu-percentile lowest similarity
-  PLS = similarity_chart(LS_adjacency, mu = mu)
+  PLS = similarity_chart(linksim$LS_weights, mu = mu)
   index = 1:length(PLS)
-  plot(index, PLS)
+  plot(index, PLS, xlab = 'LinkScan vertex index', ylab = 'mu-percentile lowest similarity')
   
   
   if(poly_approx){
     # Use cubic approximation to get a smoother function
-    approxPLS = lm(PLS~index + I(index^2) + I(index^3))
-    approxPLS_line = predict(approxPLS)[index]
+    approxPLS = spline(index, PLS)
     # plot the curve
     lines(approxPLS_line, col="green")
     # plot the the new found epsilon
@@ -282,27 +277,49 @@ LinkScan <- function(sample_network,
   eps_x = knees3$x
   eps_y = knees3$y
   points(eps_x, eps_y, col="orange", pch=20, cex = 2)
+  M = length(eps_x)
   
   
-  # Choose epsilons in the interval
-  possibles_eps = seq(from=min(PLS), to=max(PLS), length.out=n_eps)
-  possibles_eps = sort(append(possibles_eps, eps_y))
-  line_graph = graph_from_adjacency_matrix(sample_network$line_graph,
-                                           mode = 'undirected',
-                                           diag = FALSE)
+  # Choose epsilons in the interval using gaussian mixture
+  possible_eps = rnormm(n_eps, rep(1,M)/M, eps_y, sigma = rep(1,M)/20)
+  possible_eps = c(abs(possible_eps),eps_y)
+  possible_eps = sort(unique(possible_eps))
+  
+  
+  # Line graph to compare modularity
+  line_graph =line.graph(sample_network$graph)
+  
+  
+  pb = txtProgressBar(min = 0,      # Minimum value of the progress bar
+                       max = length(possible_eps)+1, # Maximum value of the progress bar
+                       style = 3,    # Progress bar style (also available style = 1 and style = 2)
+                       width = 50,   # Progress bar width. Defaults to getOption("width")
+                       char = "=")
+  progress=0  
+  setTxtProgressBar(pb, progress)
+
   modularity=c()
   # Try all the epsilons
-  for (epsilon in possibles_eps) {
-    LS_clustering = StructuralClustering(LS_adjacency, LS_graph, epsilon, mu = mu)
+  for (epsilon in possible_eps) {
+    LS_clustering = StructuralClustering(linksim$LS_weights, linksim$LS_graph, epsilon, mu = mu)
     mod = modularity(line_graph, LS_clustering$membership)
+    
+    if(mod > max(modularity)){
+      best_clustering = LS_clustering
+    }
+    
     modularity = append(modularity, mod)
+    
+    
+    progress = progress+1
+    setTxtProgressBar(pb, progress)
   }
   
   # Get the best one
   max_mod = max(modularity)
-  epsilon = possibles_eps[which.max(modularity)]
-  LS_clustering = StructuralClustering(LS_adjacency, LS_graph, epsilon, mu = mu)
-  
-  return(LS_clustering)
+  epsilon = best_clustering$epsilon
+  setTxtProgressBar(pb, progress+1)
+  close(pb)
+  return(best_clustering)
 }
 

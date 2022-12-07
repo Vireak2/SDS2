@@ -9,10 +9,11 @@ library(combinat)
 #n= 256
 #K = 2,5,10
 sample_network = RandomSBM(number_nodes=256,
-                           mode = 'Disassortative', #Try mode = 'Disassortative', 'Mixed', 'Overlap'
-                           number_blocks = 2)
-#sample_network = readRDS("256n2K_assortative.rds")
-#saveRDS(sample_network, file = "256n2K_disassortative.rds")
+                           mode = 'Overlap', #Try mode = 'Disassortative', 'Mixed', 'Overlap'
+                           number_blocks = 3,
+                           linegraphs = FALSE)
+#sample_network = readRDS("SDS2/256n2K_assortative.rds")
+saveRDS(sample_network, file = "SDS2/256n3K_overlap.rds")
 colored_adj = sample_network$colored_adjacency
 plot(colored_adj,
      col = topo.colors,
@@ -122,7 +123,7 @@ plot(igraph,
 
 
 # compare modularity
-v_membership_linkcomm = as.integer(new_lm$nodeclusters[,2]) # did not implement the modularity on lincomm yet
+v_membership_linkcomm = as.integer(lm$nodeclusters[,2]) # did not implement the modularity on lincomm yet
 v_membership_c = labelize(sample_network$node_edge, membership(cc), mode='most')
 v_membership_d = labelize(sample_network$node_edge, membership(cd), mode='most')
 
@@ -154,13 +155,83 @@ misclassification_edges(sample_network, colored_e)
 tiebow=matrix(c(0,1,1,0,0, 1,0,1,0,0, 1,1,0,1,1, 0,0,1,0,1, 0,0,1,1,0), 5, 5)
 tiebow_edges = edges_from_adjacency(tiebow)
 tiebow_igraph = graph_from_adjacency_matrix(tiebow, 'undirected')
+edgelab = c('1-2', '1-3', '2-3', '3-4', '3-5', '4-5')
 plot(tiebow_igraph,
      vertex.size = 30,
      edge.width=7,
-     vertex.color = 'white')
+     edge.label = edgelab,
+     label.color = 'black',
+     vertex.color = 'lightsalmon',
+     edge.color = 'lightblue')
+
+
+L_edgelab = c('1', '3', '2', '3', '3', '3', '3', '3', '5', '4')
+
+plot(line.graph(tiebow_igraph),
+     vertex.size = 30,
+     edge.width = 7,
+     vertex.label = edgelab,
+     edge.label = L_edgelab,
+     vertex.color = 'lightblue',
+     edge.color = 'lightsalmon')
+
+D_edgelab = c('1', '1/3', '1', '1/3', '1/3', '1/3', '1/3', '1/3', '1', '1')
+plot(line.graph(tiebow_igraph),
+     vertex.size = 30,
+     edge.width = 7,
+     vertex.label = edgelab,
+     edge.label = D_edgelab,
+     vertex.color = 'lightblue',
+     edge.color = 'gray',
+     edge.label.color = 'black',
+     edge.label.dist = .5)
+
+lnl_edgelab = c('1/2', '1/6', 'Walker', '1/6', '1/6', '0')
+plot(tiebow_igraph,
+     vertex.size = 30,
+     edge.width=7,
+     edge.label = lnl_edgelab,
+     edge.label.color = 'black',
+     vertex.color = 'gray',
+     edge.color = 'lightblue')
+
+
+E_edgelab = c('1/2', '1/4', '1/2', '1/4', '1/4', '1/4', '1/4', '1/4', '1/2', '1/2',
+              '1', '3/4', '3/4', '3/4', '3/4', '1')
+E_bowtie = line.graph(tiebow_igraph)
+E_bowtie = add_edges(E_bowtie, c(1,1,2,2,3,3,4,4,5,5,6,6))
+angle = c(0,0,0,0,0,0,0,0,0,0,
+          3*pi/2,pi,0,pi,0,pi/2)
+plot(E_bowtie,
+     vertex.size = 30,
+     edge.width = 3,
+     vertex.label = edgelab,
+     edge.label = E_edgelab,
+     vertex.color = 'lightblue',
+     edge.color = 'gray',
+     edge.label.color = 'black',
+     edge.label.dist = .5,
+     edge.loop.angle=angle)
+
+
 tiebow_linkcomm = getLinkCommunities(tiebow_edges,  hcmethod = 'single')
 plot(tiebow_linkcomm, type='graph')
 
+
+keystone_adj = matrix(c(0,0,0,0,1,0,0,0,0,
+                        0,0,0,0,1,0,0,0,0,
+                        1,0,0,0,0,0,0,0,0,
+                        0,1,0,0,0,0,0,0,0,
+                        1,1,0,0,0,1,1,1,1,
+                        0,0,0,0,1,0,1,1,1,
+                        0,0,0,0,1,1,0,1,1,
+                        0,0,0,0,1,1,1,0,1,
+                        0,0,0,0,1,1,1,1,0), 9,9 )
+
+keystone = graph_from_adjacency_matrix(keystone_adj, mode ='undirected')
+
+plot(keystone,
+     vertex.color = 'gray')
 
 #dendrogram
 tiebow_jaccard = Link_similarities(tiebow_igraph,selfloops = FALSE)$LS_weights

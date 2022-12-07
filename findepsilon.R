@@ -40,7 +40,6 @@ find_knee <- function(x, y, n_max, percent_inter = 0.05){
   # As a fraction of the total size of x
   
   deriv1 = diff(y)/diff(x) # first derivative
-  deriv2 = diff(deriv1)/diff(x[-1]) # second derivative (useless here)
   n_indices = length(x)
   radius_inter = floor(percent_inter * n_indices)
   

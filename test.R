@@ -168,6 +168,7 @@ misclassification_edges <- function(sample_network,
     matrix2 = colored_adj
     com_sort2 = obs_sort
     n_max = length(communities_predi)
+    
     if(n_com == 0){
     n_com = length(communities_obs)
     }
@@ -180,10 +181,13 @@ misclassification_edges <- function(sample_network,
     matrix2 = colored_clustering
     com_sort2 = predi_sort
     n_max = length(communities_obs)
+    
     if(n_com == 0){
       n_com = length(communities_predi)
     }
   }
+  
+  n_com = min(c(length(communities_predi), length(communities_obs), n_com))
   
   colored_matrix = matrix(match(matrix1,
                                 c(0,com_sort[1:n_com]),
@@ -215,4 +219,16 @@ misclassification_edges <- function(sample_network,
   
   return_list = list(misclass_rate,min(misclass_rate))
   return(return_list)
+}
+
+plot_adjacency <- function(colored_adj){
+  n_val = max(colored_adj)
+  to_plot = t(apply(colored_adj, 2, rev))
+  colors = c( 'white', colorRampPalette((brewer.pal(min(c(9,n_val)), name = 'Set1')))(n_val) )
+  
+  image(t(to_plot),
+        col = colors,
+        useRaster = TRUE,
+        axes = FALSE)
+  box()
 }

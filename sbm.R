@@ -1,4 +1,4 @@
-SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
+SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE, linegraphs=FALSE){
   # Given a vector that set the number of nodes on each block and the matrix of edges probabilities
   # build a stochastic block model including the number of nodes, nodes partition,matrix of edges probabilities, adjacency matrix, degree vector and edge set
   # It also return the line graph adjacency matrix and the 'D' and 'E' versions of it
@@ -106,8 +106,7 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
   
   number_edges = dim(edges)[1]
   
-  # Compute the Matrix C, the line graph matrix
-  # Compute the weight penalties
+  # Incidence matrix
   node_edge = matrix(0, number_nodes, number_edges)
   for (k in 1:number_edges) {
     e = edges[k,]
@@ -115,60 +114,129 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE){
     node_edge[e[2], k] = 1
   }
   
-  l_graph = matrix(0, number_edges, number_edges)
-  for (alpha in 1:(number_edges-1)) {
-    for (beta in (alpha+1):number_edges) {
-      l_graph[alpha, beta] = sum(node_edge[,alpha]*node_edge[,beta])
+  
+  
+  if(linegraphs){
+    # Compute the Matrix C, the line graph matrix
+    # Compute the weight penalties
+    l_graph = matrix(0, number_edges, number_edges)
+    for (alpha in 1:(number_edges-1)) {
+      for (beta in (alpha+1):number_edges) {
+        l_graph[alpha, beta] = sum(node_edge[,alpha]*node_edge[,beta])
+      }
     }
-  }
-  l_graph[lower.tri(l_graph)] <- t(l_graph)[lower.tri(l_graph)]
-  
-  # Compute the Matrix D, the weighted line graph matrix
-  weight_penalty = degrees
-  for (k in 1:number_nodes) {
-    if (degrees[k] != 1){
-      weight_penalty[k] = 1/(degrees[k]-1)
+    l_graph[lower.tri(l_graph)] <- t(l_graph)[lower.tri(l_graph)]
+    
+    # Compute the Matrix D, the weighted line graph matrix
+    weight_penalty = degrees
+    for (k in 1:number_nodes) {
+      if (degrees[k] != 1){
+        weight_penalty[k] = 1/(degrees[k]-1)
+      }
     }
-  }
-  # Computation of D
-  D_l_graph = matrix(0, number_edges, number_edges)
-  for (alpha in 1:(number_edges-1)) {
-    for (beta in (alpha+1):number_edges) {
-      D_l_graph[alpha, beta] = sum(weight_penalty*node_edge[,alpha]*node_edge[,beta])
+    # Computation of D
+    D_l_graph = matrix(0, number_edges, number_edges)
+    for (alpha in 1:(number_edges-1)) {
+      for (beta in (alpha+1):number_edges) {
+        D_l_graph[alpha, beta] = sum(weight_penalty*node_edge[,alpha]*node_edge[,beta])
+      }
     }
-  }
-  D_l_graph[lower.tri(D_l_graph)] <- t(D_l_graph)[lower.tri(D_l_graph)]
-  
-  
-  # Compute the Matrix E, the corrected weighted node-edge matrix with self loops
-  # Compute the E weight penalties
-  E_weight_penalty = degrees
-  for (k in 1:number_nodes) {
-    if (degrees[k] != 0){
-      E_weight_penalty[k] = 1/degrees[k]
+    D_l_graph[lower.tri(D_l_graph)] <- t(D_l_graph)[lower.tri(D_l_graph)]
+    
+    
+    # Compute the Matrix E, the corrected weighted node-edge matrix with self loops
+    # Compute the E weight penalties
+    E_weight_penalty = degrees
+    for (k in 1:number_nodes) {
+      if (degrees[k] != 0){
+        E_weight_penalty[k] = 1/degrees[k]
+      }
     }
-  }
-  
-  # Computation of E
-  E_l_graph = matrix(0, number_edges, number_edges)
-  for (alpha in 1:number_edges) {
-    for (beta in alpha:number_edges) {
-      E_l_graph[alpha, beta] = sum(E_weight_penalty*node_edge[,alpha]*node_edge[,beta])
+    
+    # Computation of E
+    E_l_graph = matrix(0, number_edges, number_edges)
+    for (alpha in 1:number_edges) {
+      for (beta in alpha:number_edges) {
+        E_l_graph[alpha, beta] = sum(E_weight_penalty*node_edge[,alpha]*node_edge[,beta])
+      }
     }
-  }
-  E_l_graph[lower.tri(E_l_graph)] <- t(E_l_graph)[lower.tri(E_l_graph)]
-  
-  E1_l_graph = E_l_graph %*% E_l_graph - E_l_graph
-  
-  # Return the properties of the network
-  return_list = list(number_nodes, nodes_partition, block_prob, adjacency, graph, degrees, edges, number_edges, node_edge, l_graph, D_l_graph, E_l_graph, E1_l_graph, enrichment, colored_adj)
-  names(return_list) = c('number_nodes', 'nodes_partition', 'block_prob', 'adjacency','graph', 'degrees', 'edges','number_edges', 'node_edge', 'line_graph', 'D_line_graph', 'E_line_graph', 'E1_line_graph', 'enrichment', 'colored_adjacency')
+    E_l_graph[lower.tri(E_l_graph)] <- t(E_l_graph)[lower.tri(E_l_graph)]
+    
+    E1_l_graph = E_l_graph %*% E_l_graph - E_l_graph
+    
+    # Return the properties of the network
+    return_list = list(number_nodes, nodes_partition, block_prob, adjacency, graph, degrees, edges, number_edges, node_edge, l_graph, D_l_graph, E1_l_graph, enrichment, colored_adj)
+    names(return_list) = c('number_nodes', 'nodes_partition', 'block_prob', 'adjacency','graph', 'degrees', 'edges','number_edges', 'node_edge', 'line_graph', 'D_line_graph', 'E1_line_graph', 'enrichment', 'colored_adjacency')
+    
+    }else{
+      # Return the properties of the network
+      return_list = list(number_nodes, nodes_partition, block_prob, adjacency, graph, degrees, edges, number_edges, node_edge, enrichment, colored_adj)
+      names(return_list) = c('number_nodes', 'nodes_partition', 'block_prob', 'adjacency','graph', 'degrees', 'edges','number_edges', 'node_edge', 'enrichment', 'colored_adjacency')
+    }
   return(return_list)
 }
 
 
 
-
+get_linegraph <- function(sample_network, type){
+  number_nodes = sample_network$number_nodes
+  number_edges = sample_network$number_edges
+  node_edge = sample_network$node_edge
+  degrees = sample_network$degrees
+  l_graph = matrix(0, number_edges, number_edges)
+  
+  if(type == 'C'){
+    for (alpha in 1:(number_edges-1)) {
+      for (beta in (alpha+1):number_edges) {
+        l_graph[alpha, beta] = sum(node_edge[,alpha]*node_edge[,beta])
+      }
+    }
+    l_graph[lower.tri(l_graph)] <- t(l_graph)[lower.tri(l_graph)]
+  }
+  
+  
+  
+  if(type == 'D'){
+    weight_penalty = degrees
+    for (k in 1:number_nodes) {
+      if (degrees[k] != 1){
+        weight_penalty[k] = 1/(degrees[k]-1)
+      }
+    }
+    # Computation of D
+    for (alpha in 1:(number_edges-1)) {
+      for (beta in (alpha+1):number_edges) {
+        l_graph[alpha, beta] = sum(weight_penalty*node_edge[,alpha]*node_edge[,beta])
+      }
+    }
+    l_graph[lower.tri(l_graph)] <- t(l_graph)[lower.tri(l_graph)]
+  }
+  
+  
+  
+  
+  if(type == 'E' | type == 'E1'){
+    E_weight_penalty = degrees
+    for (k in 1:number_nodes) {
+      if (degrees[k] != 0){
+        E_weight_penalty[k] = 1/degrees[k]
+      }
+    }
+    
+    # Computation of E
+    for (alpha in 1:number_edges) {
+      for (beta in alpha:number_edges) {
+        l_graph[alpha, beta] = sum(E_weight_penalty*node_edge[,alpha]*node_edge[,beta])
+      }
+    }
+    l_graph[lower.tri(l_graph)] <- t(l_graph)[lower.tri(l_graph)]
+    
+    #E1
+    l_graph = l_graph %*% l_graph - l_graph
+  }
+  
+  return(l_graph)
+}
 
 
 
@@ -218,7 +286,8 @@ RandomSBM <- function(number_nodes = 100,
                       mode = 'Assortative',
                       number_blocks=floor(sqrt(number_nodes)),
                       prob_mix = 0.5, # Probability of having a assortative community in a mixed model 
-                      mode_node = 'random'){
+                      mode_node = 'random',
+                      linegraphs=FALSE){
 
   # Returns a SBM with approximately number_nodes nodes and  number_blocks blocks
   # the SBM can be 'Assortative', 'Disassortative' or 'Mixed'
@@ -257,7 +326,7 @@ RandomSBM <- function(number_nodes = 100,
   if(mode == 'Overlap'){
     blockprob = matrix(runif(number_blocks*number_blocks,0.01, 0.1), number_blocks, number_blocks)
     diag(blockprob) = runif(number_blocks, intra[1], intra[2])
-    blockprob[,number_blocks] = runif(number_blocks, 0.3, 0.4)
+    blockprob[,number_blocks] = runif(number_blocks, intra[1], intra[2])
     blockprob[lower.tri(blockprob)] <- t(blockprob)[lower.tri(blockprob)]
   }
   
@@ -267,7 +336,7 @@ RandomSBM <- function(number_nodes = 100,
   else{
     nodesdistr = replicate(n_blocks, floor(number_nodes/number_blocks))
   }
-  sample_network = SBM(nodesdistr, blockprob)
+  sample_network = SBM(nodesdistr, blockprob, linegraphs)
   
   return(sample_network)
   
@@ -296,11 +365,8 @@ labelize <- function(incidence, edge_membership, mode='most'){
           score = append(score,edge_membership[e])
         }
         
-        proportion = rep(0, n_community)
-        for(c in 1:n_community){
-          proportion[c] = length(which(score == c)) / length(score)
-        }
-        
+        proportion = table(factor(score, levels = 1:n_community)) / length(score)
+
         list_v = list(proportion)
         node_membership = append(node_membership, list_v)
       }
@@ -343,3 +409,14 @@ Color_Adjacency <- function(adjacency, edge_list, edge_membership){
   return(colored)
 }
 
+memberize_linkcomm <- function(lmclusters, n_edges){
+  n_clust = length(lmclusters)
+  membership = rep(0, n_edges)
+  
+  for(i in 1:n_clust){
+    for(e in lmclusters[[i]]){
+      membership[e] = i
+    }
+  }
+  return(membership)
+}
