@@ -324,9 +324,9 @@ RandomSBM <- function(number_nodes = 100,
   }
   
   if(mode == 'Overlap'){
-    blockprob = matrix(runif(number_blocks*number_blocks,0.01, 0.1), number_blocks, number_blocks)
+    blockprob = matrix(runif(number_blocks*number_blocks,0.01, 0.2), number_blocks, number_blocks)
     diag(blockprob) = runif(number_blocks, intra[1], intra[2])
-    blockprob[,number_blocks] = runif(number_blocks, intra[1], intra[2])
+    blockprob[,number_blocks] = runif(number_blocks, 0.3, 0.45)
     blockprob[lower.tri(blockprob)] <- t(blockprob)[lower.tri(blockprob)]
   }
   

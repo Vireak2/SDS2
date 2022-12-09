@@ -233,6 +233,50 @@ keystone = graph_from_adjacency_matrix(keystone_adj, mode ='undirected')
 plot(keystone,
      vertex.color = 'gray')
 
+m_val = c(0,0,0,0,0,0,1,1,0,0,0,
+          0,0,0,0,0,0,1,0,1,0,0,
+          0,0,0,0,0,0,0,1,1,0,0,
+          0,0,0,0,0,0,0,0,1,1,0,
+          0,0,0,0,0,0,0,0,1,0,1,
+          0,0,0,0,0,0,0,0,0,1,1,
+          0,0,0,0,0,0,0,0,0,0,0,
+          0,0,0,0,0,0,0,0,0,0,0,
+          0,0,0,0,0,0,0,0,0,0,0,
+          0,0,0,0,0,0,0,0,0,0,0,
+          0,0,0,0,0,0,0,0,0,0,0)
+bipart = matrix(m_val, 11,11)
+bipart[upper.tri(bipart)] = t(bipart)[upper.tri(bipart)]
+incidence_bipart_tiebow = graph_from_adjacency_matrix(bipart, mode = 'undirected')
+bipart_lab = c('1-2', '1-3', '2-3', '3-4', '3-5', '4-5',
+               '1','2','3','4','5')
+plot(incidence_bipart_tiebow,
+     layout = layout.bipartite(incidence_bipart_tiebow, type = c(0,0,0,0,0,0,1,1,1,1,1)),
+     vertex.shape = c(rep('rectangle',6), rep('circle', 5)),
+     vertex.label = bipart_lab,
+     vertex.size = 20,
+     vertex.color = 'lightblue'
+     )
+
+test = bipartite.random.game(4,4,'gnp',0.6)
+plot(test,layout = layout.bipartite)
+plot(test,
+     layout = layout.bipartite,
+     vertex.label = c('e','','f','k','i','','','j'),
+     edge.color = c('red', 'lightgray', 'red', 'lightgray', 'lightgray', 'lightgray', 'lightgray', 'lightgray', 'red', 'red'),
+     edge.width = c(3, 1, 3, 1, 1, 1, 1, 1, 3, 3),
+     edge.label.color = 'black',
+     vertex.shape = c(rep('rectangle', 4), rep('circle',4)),
+     vertex.color = 'lightblue')
+
+plot(incidence_bipart_tiebow,
+     layout = layout.bipartite(incidence_bipart_tiebow, type = c(0,0,0,0,0,0,1,1,1,1,1)),
+     vertex.shape = c(rep('rectangle',6), rep('circle', 5)),
+     vertex.label = '',
+     edge.color = c('lightgray','red','lightgray','lightgray','red','red','lightgray','lightgray','red','lightgray','lightgray'),
+     vertex.size = 20,
+     edge.width = c(1,3,1,1,3,3,1,1,3,1,1),
+     vertex.color = 'lightblue')
+
 #dendrogram
 tiebow_jaccard = Link_similarities(tiebow_igraph,selfloops = FALSE)$LS_weights
 edgesnames= c('(1,2)', '(1,3)', '(2,3)', '(3,4)', '(3,5)', '(4,5)')

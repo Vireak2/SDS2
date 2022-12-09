@@ -245,7 +245,7 @@ LinkScan <- function(sample_network,
                      n_eps = 20,
                      n_critic = 5,
                      poly_approx = FALSE,
-                     star= FALSE,
+                     star= TRUE,
                      alpha = 0,
                      beta = 1){
   

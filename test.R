@@ -8,65 +8,19 @@ overlap_coefficient<- function(x, y){
 }
 
 
-overlap_quality<- function(adjacency){
-  adjacency = ceiling(adjacency)
-  n_nodes = dim(adjacency)[1]
-  edges = matrix(0, 0, 2)
-  edges = edges_from_adjacency(adjacency)
+overlap_quality<- function(colored_adjacency){
+  n_block = max(colored_adjacency)
+  OQ = matrix(1,n_block, n_block)
   
-  # Matrix of the gamma vector that is (the set of vertices adjacent to v) + v
-  gamma = adjacency + diag(1, dim(adjacency))
-  n_edges = dim(edges)[1]
-  
-  ### Computation of the weights ###
-  #Declare the weighted adjacency
-  OC = matrix(0, n_edges, n_edges)
-  
-  
-  # Compute the weights of
-  # the adjacent edges of the type e1 = (i, k) and e2 = (k, j) or (j, k)
-  for(e1 in 1:(n_edges-1)){
-    w1 = edges[e1,1]
-    k = edges[e1,2]
-    
-    for(e2 in (e1+1):n_edges){ # Look for edges stored after e1 in the edge set
-      if(edges[e2,2] == k){ #if e2 = (k, j)
-        w2 = edges[e2,1]
-        similarity = overlap_coefficient(gamma[w1,], gamma[w2,])
-        OC[e1, e2] = similarity
-        OC[e2, e1] = similarity
-      }
-      
-      if(edges[e2,1] == k){ #if e2 = (j, k)
-        w2 = edges[e2,2]
-        similarity = overlap_coefficient(gamma[w1,], gamma[w2,])
-        OC[e1, e2] = similarity
-        OC[e2, e1] = similarity
-      }
+  for (i in 1:n_block) {
+    comi = rowSums(colored_adjacency == i)!=0
+    for (j in i+1:n_block) {
+      comj = rowSums(colored_adjacency == j)!=0
+      OQ[i,j] = overlap_coefficient(comi, comj)
     }
   }
-  
-  for(e1 in 1:(n_edges-1)){
-    w1 = edges[e1,2]
-    k = edges[e1,1]
-    
-    for(e2 in (e1+1):n_edges){
-      if(edges[e2,2] == k){
-        w2 = edges[e2,1]
-        similarity = overlap_coefficient(gamma[w1,], gamma[w2,])
-        OC[e1, e2] = similarity
-        OC[e2, e1] = similarity
-      }
-      
-      if(edges[e2,1] == k){
-        w2 = edges[e2,2]
-        similarity = overlap_coefficient(gamma[w1,], gamma[w2,])
-        OC[e1, e2] = similarity
-        OC[e2, e1] = similarity
-      }
-    }
-  }
-  return(OC)
+  OQ[lower.tri(OQ)] = t(OQ)[lower.tri(OQ)]
+  return(OQ)
 }
 
 
@@ -231,4 +185,19 @@ plot_adjacency <- function(colored_adj){
         useRaster = TRUE,
         axes = FALSE)
   box()
+}
+
+bestLinkcomm = function(lm, n=25, linegraph, sample_network){
+  cutoffpoints = seq(from = .9*lm$pdmax, to= lm$pdmax, length.out = n)
+  modularities = c(0)
+  for(point in cutoffpoints){
+    newlm = newLinkCommsAt(lm, cutat=point)
+    membership_linkcomm = memberize_linkcomm(newlm$clusters, sample_network$number_edges)
+    mod = modularity(linegraph, membership_linkcomm+1)
+    if(mod > max(modularities)){
+      bestlm = newlm
+    }
+    modularities = append(modularities,mod)
+  }
+  return(bestlm)
 }

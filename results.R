@@ -12,18 +12,19 @@ library(Matrix)
 
 #n= 256
 #K = 2,5,10
-# sample_network = RandomSBM(number_nodes=256,
-#                           mode = 'Disassortative', #Try mode = 'Disassortative', 'Mixed', 'Overlap'
-#                           number_blocks = 2,
+#sample_network = RandomSBM(number_nodes=100,
+#                           mode = 'Overlap', #Try mode = 'Disassortative', 'Mixed', 'Overlap'
+#                           number_blocks = 3,
 #                           linegraphs = FALSE)
 
-sample_network = readRDS("SDS2/256n5K_assortative.rds")
-#saveRDS(sample_network, file = "256n2K_disassortative.rds")
+sample_network = readRDS("SDS2/256n2K_assortative.rds")
+#saveRDS(sample_network, file = "256n4K_overlap.rds")
 
 plot_adjacency(sample_network$colored_adjacency)
 
 igraph = sample_network$graph
-N_misclass = 6
+line_graph = line.graph(sample_network$graph)
+N_misclass = 8
 
 ### LINKCOMM ###
 lm <- getLinkCommunities(sample_network$edges,  hcmethod = 'single')
@@ -38,12 +39,19 @@ corectness <- getCommunityConnectedness(lm)
 corectness
 lm$pdmax
 
-
-membership_linkcomm = memberize_linkcomm(lm$clusters)
+membership_linkcomm = memberize_linkcomm(lm$clusters, sample_network$number_edges)
 mixed_membership_linkcomm = labelize(sample_network$node_edge, membership_linkcomm, mode = 'multi')
 colored_linkcomm = Color_Adjacency(sample_network$adjacency, sample_network$edges, membership_linkcomm)
 plot_adjacency(colored_linkcomm)
 
+### Linkcomm mod ###
+bestlm = bestLinkcomm(lm, 25, line_graph, sample_network)
+plot(bestlm, type = "graph")
+bestlm$pdmax
+membership_linkcommmod = memberize_linkcomm(bestlm$clusters, sample_network$number_edges)
+mixed_membership_linkcommmod = labelize(sample_network$node_edge, membership_linkcommmod, mode = 'multi')
+colored_linkcommmod = Color_Adjacency(sample_network$adjacency, sample_network$edges, membership_linkcommmod)
+plot_adjacency(colored_linkcommmod)
 
 ### IMPERIAL ###
 # igraphs objects with adjacency = C, D and E1
@@ -142,7 +150,7 @@ plot(sample_network$graph,
      vertex.label=NA,
      vertex.shape="pie",
      vertex.pie=linkscan_membership,
-     vertex.size=5,
+     vertex.size=1,
      edge.width=1,
      edge.color=LS_clustering$membership,
      main = 'mixed membership linkscan')
@@ -153,10 +161,11 @@ plot(sample_network$graph,
 
 
 ### Comparisons ###
-line_graph = line.graph(sample_network$graph)
+
 
 # Modularity
-mod_linkcomm = modularity(line_graph, membership_linkcomm)
+mod_linkcomm = modularity(line_graph, membership_linkcomm+1)
+mod_linkcommmod = modularity(line_graph, membership_linkcommmod+1)
 mod_c = modularity(line_graph, membership(cc))
 mod_d = modularity(line_graph, membership(cd))
 mod_e = modularity(line_graph, membership(ce))
@@ -166,6 +175,7 @@ modularities = c(mod_linkcomm, mod_c, mod_d, mod_e, mod_linkscan)
 # Expected
 expected = expected_communities(sample_network, TRUE)
 exp_linkcomm = norm(expected - number_communities(mixed_membership_linkcomm), type="2")
+exp_linkcommmod = norm(expected - number_communities(mixed_membership_linkcommmod), type="2")
 exp_c = norm(expected - number_communities(mixed_membership_c), type="2")
 exp_d = norm(expected - number_communities(mixed_membership_d), type="2")
 exp_e = norm(expected - number_communities(mixed_membership_e), type="2")
@@ -174,6 +184,7 @@ expectations = c(exp_linkcomm, exp_c, exp_d, exp_e, exp_linkscan)
 
 # misclassification approx
 misclass_linkcomm = misclassification_edges(sample_network, colored_linkcomm, N_misclass)[[2]]
+misclass_linkcommmod = misclassification_edges(sample_network, colored_linkcommmod, N_misclass)[[2]]
 misclass_c
 misclass_d
 misclass_e
@@ -184,6 +195,11 @@ measurement = data.frame(Methods = c('Linkcomm', 'Imperial C','Imperial D', 'Imp
                          Modularity = modularities,
                          Expectation_L2error = expectations,
                          Approx_misclassification = missclassifications)
-saveRDS(measurement, file = "SDS2/2K_assortative_measures.rds")
-##### Dont forget to rerun linkscan  ##### 
-##### Dont forget to rerun linkscan  ##### 
+measurement
+#saveRDS(measurement, file = "SDS2/10K_mixed_measures.rds")
+# In case
+#saveRDS(measurement, file = "10K_mixed_measures.rds")
+
+c(mod_linkcommmod, exp_linkcommmod, misclass_linkcommmod)
+
+y = readRDS("SDS2/10K_mixed_measures.rds")
