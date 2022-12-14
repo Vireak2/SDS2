@@ -24,6 +24,22 @@ overlap_quality<- function(colored_adjacency){
 }
 
 
+clean_membership <- function(membership, threshold = 8){
+  mem_table = table(membership)
+  new_membership_table = mem_table[mem_table >= threshold]
+  communities = sort(as.double(names(new_membership_table)))
+  communities=communities[communities!=0]
+  new_n_com = length(communities)
+  temp = sapply(membership, function(x){if(x %in% communities){return(x)}else{return(0)}})
+  new_membership=temp
+  
+  for(i in 1:new_n_com){
+    new_membership[temp == communities[i]] = i
+  }
+  
+  return(new_membership)
+}
+
 expected_communities <- function(sample_network, as_vertex=TRUE){
   blockprob = sample_network$block_prob
   nodes_partition = sample_network$nodes_partition
@@ -88,92 +104,103 @@ number_communities <- function(mixed_membership){
 
 misclassification_edges <- function(sample_network,
                                     colored_clustering,
-                                    n_com = 0){
+                                    n_com = 8){
   
   n_edges = sample_network$number_edges
   colored_adj = sample_network$colored_adjacency
   n_vertex = dim(colored_adj)[1]
   
+  sorted_predi_coms = sort(table(colored_clustering[colored_clustering!=0]), decreasing = TRUE)
+  sorted_actual_coms = sort(table(colored_adj[colored_adj!=0]), decreasing = TRUE)
   
-  communities_obs = 1:max(colored_adj)
-  communities_predi = 1:max(colored_clustering)
+  n_predi_coms = min(length(sorted_predi_coms),n_com)
+  n_actual_coms = min(length(sorted_actual_coms),n_com)
   
-  obs_count = c()
-  predi_count = c()
+  most_predi_coms = as.double(names(sorted_predi_coms[1:n_predi_coms]))
+  most_actual_coms = as.double(names(sorted_actual_coms[1:n_actual_coms]))
   
-  for(c in communities_obs){
-    obs_count = append(obs_count, sum(colored_adj == c))
+  matrix1 = matrix(0,n_vertex,n_vertex)
+  matrix2 = matrix(0,n_vertex,n_vertex)
+  
+  for (i in 1:n_predi_coms) {
+    matrix1[colored_clustering == most_predi_coms[i]] = i
   }
   
-  for(c in communities_predi){
-    predi_count = append(predi_count, sum(colored_clustering == c))
+  for (i in 1:n_actual_coms) {
+    matrix2[colored_adj == most_actual_coms[i]] = i
   }
   
-  obs_sort = sort(obs_count, index.return = TRUE, decreasing =TRUE)[[2]]
-  predi_sort = sort(predi_count, index.return = TRUE, decreasing = TRUE)[[2]]
+  n_edges_considered = max(sum(matrix1 != 0), sum(matrix2 != 0))/2
   
-  
-  
-  
-  if(length(communities_predi) > length(communities_obs)){
-    matrix1 = colored_clustering
-    com_sort = predi_sort
-    com = communities_predi
-    matrix2 = colored_adj
-    com_sort2 = obs_sort
-    n_max = length(communities_predi)
-    
-    if(n_com == 0){
-    n_com = length(communities_obs)
-    }
-    
-  }else{
-    
-    matrix1 = colored_adj
-    com_sort = obs_sort
-    com = communities_obs
-    matrix2 = colored_clustering
-    com_sort2 = predi_sort
-    n_max = length(communities_obs)
-    
-    if(n_com == 0){
-      n_com = length(communities_predi)
-    }
-  }
-  
-  n_com = min(c(length(communities_predi), length(communities_obs), n_com))
-  
-  colored_matrix = matrix(match(matrix1,
-                                c(0,com_sort[1:n_com]),
-                                nomatch = n_max+1),
-                          n_vertex,n_vertex)-1
-  
-  colored_matrix2 = matrix(match(matrix2,
-                                 c(0,com_sort2[1:n_com]),
-                                nomatch = n_max+2),
-                          n_vertex,n_vertex)-1
-  
-  colored_matrix2 = colored_matrix2[upper.tri(colored_matrix2, diag = TRUE)]
-  
-
-  permutations = permn(1:n_com)
+  permutations = permn(1:n_predi_coms)
   misclass_rate = c()
   for (iter in 1:length(permutations)) {
-    permut_i = permutations[[iter]]
-    temp_colored = colored_matrix
-      
-    for(i in 1:n_com){
-      temp_colored[colored_matrix==i] = permut_i[i]
+    permut_iter = permutations[[iter]]
+    temp_colored = matrix1
+    
+    for(i in 1:n_predi_coms){
+      temp_colored[which(matrix1==i)] = permut_iter[i]
     }
     
-    temp_colored = temp_colored[upper.tri(temp_colored, diag = TRUE)]
-    misclass_i = sum((temp_colored - colored_matrix2)!=0) / n_edges
+    differences = (temp_colored - matrix2)!=0
+    differences = differences[upper.tri(differences, diag = TRUE)]
+    misclass_i = sum(differences) / n_edges_considered
     misclass_rate = append(misclass_rate, misclass_i)
   }
   
   return_list = list(misclass_rate,min(misclass_rate))
   return(return_list)
+  
 }
+
+
+misclassification_vertex <- function(sample_network,
+                                    colored_clustering){
+  
+  n_vertex = sample_network$number_nodes
+  nodes_partition = sample_network$nodes_partition
+  colored_adj = sample_network$colored_adjacency
+  communities_index_b = head( cumsum(c(1,nodes_partition)), -1)
+  communities_index_e = cumsum(nodes_partition)
+  actual_v_class = rep(0,n_vertex)
+  predi_v_class_raw = rep(0,n_vertex)
+  
+  for(index in 1:length(communities_index_b)){
+    interval = communities_index_b[index]:communities_index_e[index]
+    actual_v_class[interval] = index
+    
+    predicted_values = c(colored_clustering[interval,interval][colored_clustering[interval,interval]!=0])
+    most_common_predi = as.integer(names(sort(table(predicted_values), decreasing =TRUE)[1]))
+    predi_v_class_raw[interval] = most_common_predi
+  }
+  
+  n_unique_values = length(unique(predi_v_class_raw))
+  predi_v_class_raw = predi_v_class_raw + n_unique_values
+  predi_v_class = rep(0,n_vertex)
+  for(j in 1:n_unique_values){
+    predi_v_class[predi_v_class_raw==unique(predi_v_class_raw)[j]] = j
+  }
+  
+  n_com = max(unique(predi_v_class))
+  permutations = permn(1:n_com)
+  misclassifications = rep(1,length(permutations))
+  
+  for(iter in 1:length(permutations)){
+    permut_i = permutations[[iter]]
+    temp_predict = predi_v_class
+    
+    for(i in 1:n_com){
+      temp_predict[predi_v_class==i] = permut_i[i]
+    }
+    
+    misclass_i = sum((temp_predict - actual_v_class)!=0)/n_vertex
+    misclassifications[iter] = misclass_i
+  }
+  
+  return(min(misclassifications)) 
+}
+
+
 
 plot_adjacency <- function(colored_adj){
   n_val = max(colored_adj)
@@ -187,8 +214,8 @@ plot_adjacency <- function(colored_adj){
   box()
 }
 
-bestLinkcomm = function(lm, n=25, linegraph, sample_network){
-  cutoffpoints = seq(from = .9*lm$pdmax, to= lm$pdmax, length.out = n)
+bestLinkcomm = function(lm, n=50, linegraph, sample_network){
+  cutoffpoints = seq(from = .9*lm$pdmax, to= 1.1*lm$pdmax, length.out = 50)
   modularities = c(0)
   for(point in cutoffpoints){
     newlm = newLinkCommsAt(lm, cutat=point)

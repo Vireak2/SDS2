@@ -51,6 +51,7 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE, linegr
   # if include self loops
   if (!loops){
     diag(adjacency)=0
+    diag(colored_adj)=0
   }
   
   
@@ -240,8 +241,6 @@ get_linegraph <- function(sample_network, type){
 
 
 
-
-
 edges_from_adjacency <- function(adjacency, directed = FALSE){
   number_nodes = dim(adjacency)[1]
   # Declare the edge set
@@ -275,17 +274,12 @@ edges_from_adjacency <- function(adjacency, directed = FALSE){
 
 
 
-
-
-
-
-
-RandomSBM <- function(number_nodes = 100,
-                      inter=c(0.01, 0.2),
-                      intra = c(0.4,0.6),
+RandomSBM <- function(number_nodes,
+                      inter=c(0.001, min(log(number_nodes)*5/number_nodes, 0.2) ),
+                      intra = c(min(log(number_nodes)*20/number_nodes, 0.45), 0.5),
                       mode = 'Assortative',
                       number_blocks=floor(sqrt(number_nodes)),
-                      prob_mix = 0.5, # Probability of having a assortative community in a mixed model 
+                      prob_mix = 0.5, # Probability of having a dense community in a mixed model 
                       mode_node = 'random',
                       linegraphs=FALSE){
 
@@ -324,9 +318,9 @@ RandomSBM <- function(number_nodes = 100,
   }
   
   if(mode == 'Overlap'){
-    blockprob = matrix(runif(number_blocks*number_blocks,0.01, 0.2), number_blocks, number_blocks)
+    blockprob = matrix(runif(number_blocks*number_blocks,inter[1], inter[2]), number_blocks, number_blocks)
     diag(blockprob) = runif(number_blocks, intra[1], intra[2])
-    blockprob[,number_blocks] = runif(number_blocks, 0.3, 0.45)
+    blockprob[,number_blocks] = runif(number_blocks, log(number_nodes)*14/number_nodes,log(number_nodes)*15/number_nodes)
     blockprob[lower.tri(blockprob)] <- t(blockprob)[lower.tri(blockprob)]
   }
   
@@ -341,7 +335,6 @@ RandomSBM <- function(number_nodes = 100,
   return(sample_network)
   
 }
-
 
 
 
@@ -388,8 +381,6 @@ labelize <- function(incidence, edge_membership, mode='most'){
   
   return(node_membership)
 }
-
-
 
 
 

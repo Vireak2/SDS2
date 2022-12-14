@@ -136,9 +136,6 @@ Link_similarities <- function(graph, selfloops = TRUE, star= FALSE, alpha = 0, b
 
 
 
-
-
-
 StructuralClustering <- function(adjacency_weigthed, LS_graph, epsilon, mu=0.7){
   # Compute the selections function and the epsilon neighbors of the LinkSpace graph
   # Then apply the Algorithm 3 'StructuralClustering' with parameters epsilon and mu
@@ -153,7 +150,7 @@ StructuralClustering <- function(adjacency_weigthed, LS_graph, epsilon, mu=0.7){
   selection = rep(0, n_vertex)
   
   # Declare the matrix that store the epsilon-Neighbors of the LS-vertex in the rows
-  N_eps = data.frame(row.names = 'vertex')
+  N_eps = list()
   
   # Calculate the selection function and epsilon neighbors for each LS-vertices
   for (v in 1:n_vertex) {
@@ -168,9 +165,28 @@ StructuralClustering <- function(adjacency_weigthed, LS_graph, epsilon, mu=0.7){
       selection[v] = fv
     }
     
-    N_eps = rbind(N_eps, Nv_eps)  #add the row of epsilon neighbors corresponding to v
+    N_eps = append(N_eps, list(Nv_eps))  #add the row of epsilon neighbors corresponding to v
   }
   
+  
+  # Initial set of unclassified LS-vertices and neutral set
+  unclassified=1:n_vertex
+  neutral = c()
+  
+  # Set of core nodes
+  core_nodes = unclassified[selection > mu]
+  
+  
+  # Create the DIRREACH set
+  dir.reach = list()
+  for (v in unclassified) {
+    if(v %in% core_nodes){
+      dir.reach_v = as.integer(N_eps[[v]])
+    }else{
+      dir.reach_v = as.integer(na.omit(N_eps[[v]][core_nodes]))
+    }
+    dir.reach = append(dir.reach, list(dir.reach_v))
+  }
   
   
   ### StructuralClustering ###
@@ -179,11 +195,8 @@ StructuralClustering <- function(adjacency_weigthed, LS_graph, epsilon, mu=0.7){
   # Declare the data frame that contains the clusters on the rows
   clusters=data.frame(row.names = 'cluster')
   
-  # Initial set of unclassified LS-vertices and neutral set
-  unclassified=1:n_vertex
-  neutral = c()
   
-  # Cluster ID start at 1+1=2 (1 is for the neutral community)
+  # Cluster ID start at 2 (1 is for the neutral community)
   clusterID = 1
   
   # vector of membership of the LS-vertices (edges of original graph)
@@ -196,28 +209,28 @@ StructuralClustering <- function(adjacency_weigthed, LS_graph, epsilon, mu=0.7){
       cluster_v = c(v) # generate a new cluster
       membership[v] = clusterID
       unclassified = unclassified[unclassified != v ] # remove v from unclassified
-      Q = unique(as.integer(N_eps[v,])) #add N_eps(v) to a queue Q; uniqe to avoid redondancy in Q
+      Q = dir.reach[[v]] #add N_eps(v) to a queue Q
       
-        while(length(Q) != 0 ) { #While Q!=0
-          y = Q[1] # y = first node in Q
-          R = unique(as.integer(N_eps[y,])) #R = DirReach(v)
-                
-            for (x in R) {
-              
-              if ( ((x %in% unclassified) | (x %in% neutral)) ){ #If x is unclassified or neutral
-                cluster_v = append(cluster_v,x) #add x to the current cluster
-                membership[x] = clusterID
-                neutral = neutral[neutral != x] #remove x from neutral cluster
-              }
-              
-              if(x %in% unclassified){  #If x is unclassified
-                Q = append(Q,x) # add x to the end of Q
-              }
-              
-              unclassified = unclassified[unclassified != x ] # remove x from unclassied
-            }
-            Q = Q[-1] # remove y from Q
+      while(length(Q) != 0 ) { #While Q!=0
+        y = Q[1] # y = first node in Q
+        R = dir.reach[[y]]#R = DirReach(v)
+        
+        for (x in R) {
+          
+          if ( ((x %in% unclassified) | (x %in% neutral)) ){ #If x is unclassified or neutral
+            cluster_v = append(cluster_v,x) #add x to the current cluster
+            membership[x] = clusterID
+            neutral = neutral[neutral != x] #remove x from neutral cluster
+          }
+          
+          if(x %in% unclassified){  #If x is unclassified
+            Q = append(Q,x) # add x to the end of Q
+          }
+          
+          unclassified = unclassified[unclassified != x ] # remove x from unclassied
         }
+        Q = Q[-1] # remove y from Q
+      }
       cluser_v = unique(cluster_v)  # avoid redondancy in the cluster of v (although should not happen)
       clusters = rbind(clusters, cluster_v) # add the cluster of v in the dataframe
       
@@ -238,6 +251,77 @@ StructuralClustering <- function(adjacency_weigthed, LS_graph, epsilon, mu=0.7){
   return(StructClust)
 }
 
+
+
+similarity_chart <- function(LS_weigths, fraction_nodes = 1, mu=0.7){
+  # Return the sorted vector of 100mu-th percentile lowest similarity of each nodes
+  # fraction node denotes the fraction of nodes to sample 
+  
+  adjacency = LS_weigths
+  n_nodes = dim(adjacency)[1]
+  
+  
+  # Sampling
+  if (fraction_nodes != 1){
+    nodes = sample(1:n_nodes, floor(fraction_nodes * n_nodes))
+    adjacency = adjacency[nodes, nodes]
+    n_nodes = dim(adjacency)[1]
+  }
+  
+  # Vector of 100mu% lowest similarities
+  mu_PLS = c()
+  
+  for (i in 1:n_nodes){
+    S_i = adjacency[,i]
+    N_i = S_i[which(S_i != 0)]
+    mu_percentile = floor(mu * length(N_i))
+    v_i =sort(N_i, decreasing = FALSE)[mu_percentile]  #Dont know if decreasing or not
+    mu_PLS = append(mu_PLS, v_i)
+  }
+  
+  mu_PLS = sort(mu_PLS)
+  
+  return(mu_PLS)
+}
+
+
+
+
+find_knee <- function(x, y, n_max, percent_inter = 0.05){
+  # Returns the points of the function y=f(x)
+  # that maximize the amplitude of the 1st derivative 
+  # n_max : number of maximums returned
+  # percent_inter : radius of the interval where the others maximums can be selected.
+  # As a fraction of the total size of x
+  
+  deriv1 = diff(y)/diff(x) # first derivative
+  n_indices = length(x)
+  radius_inter = floor(percent_inter * n_indices)
+  
+  xmax=c()
+  ymax=c()
+  
+  deriv_domain = deriv1
+  for (k in 1:n_max) {
+    # look for the max of |f'(x)| in the domain
+    max_deriv1 = max( abs( deriv_domain ) )
+    
+    i_max = which.max(abs(deriv_domain))
+    x_i = x[i_max]
+    y_i = y[i_max]
+    
+    l_bound = max(i_max - radius_inter, 1)
+    u_bound = min(i_max + radius_inter, length(deriv_domain))
+    deriv_domain[(l_bound:u_bound)] = 0
+    
+    xmax = append(xmax, x_i)
+    ymax = append(ymax, y_i)
+    
+  }
+  return_list = list(xmax, ymax)
+  names(return_list) = c('x', 'y')
+  return(return_list)
+}
 
 
 LinkScan <- function(sample_network,
@@ -285,7 +369,6 @@ LinkScan <- function(sample_network,
   possible_eps = c(abs(possible_eps),eps_y)
   possible_eps = sort(unique(possible_eps))
   
-  
   # Line graph to compare modularity
   line_graph =line.graph(sample_network$graph)
   
@@ -298,13 +381,13 @@ LinkScan <- function(sample_network,
   progress=0  
   setTxtProgressBar(pb, progress)
 
-  modularity=c()
+  modularity=c(0)
   # Try all the epsilons
   for (epsilon in possible_eps) {
     LS_clustering = StructuralClustering(linksim$LS_weights, linksim$LS_graph, epsilon, mu = mu)
     mod = modularity(line_graph, LS_clustering$membership)
     
-    if(mod > max(modularity, 0)){
+    if(mod >= max(modularity)){
       best_clustering = LS_clustering
     }
     
