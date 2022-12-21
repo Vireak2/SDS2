@@ -334,6 +334,7 @@ LinkScan <- function(sample_network,
                      beta = 1){
   
   # Get the LS graph and adjacency
+  print('Computation of the LinkSpace weights and sampling...')
   linksim = Link_similarities(sample_network$graph, selfloops = TRUE, star, alpha, beta)
   
   ### Try to find a epsilon ###
@@ -372,7 +373,7 @@ LinkScan <- function(sample_network,
   # Line graph to compare modularity
   line_graph =line.graph(sample_network$graph)
   
-  
+  print('Structural clustering...')
   pb = txtProgressBar(min = 0,      # Minimum value of the progress bar
                        max = length(possible_eps)+1, # Maximum value of the progress bar
                        style = 3,    # Progress bar style (also available style = 1 and style = 2)

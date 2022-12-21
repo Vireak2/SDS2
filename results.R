@@ -9,61 +9,63 @@ library(LaplacesDemon)
 library(ggplot2)
 library(RColorBrewer)
 library(Matrix)
-library(CliquePercolation)
+library(pdfCluster)
 
-#min 20 edges
-#misclass on vertices
+# Network creation
+#number_nodes = 256
+#sample_network = RandomSBM(number_nodes,
+#                           inter = c(0.01, log(number_nodes)*3/number_nodes),
+#                           intra = c(log(number_nodes)*10/number_nodes, 0.5),
+#                           mode = 'Disassortative', #Try mode = 'Disassortative', 'Mixed', 'Overlap'
+#                           number_blocks = 2,
+#                          linegraphs = FALSE)
+#saveRDS(sample_network, file = "Networks/2K_disa.rds")
 
-#K = 2,5,10
-number_nodes = 100
-sample_network = RandomSBM(number_nodes,
-                           mode = 'Assortative', #Try mode = 'Disassortative', 'Mixed', 'Overlap'
-                           number_blocks = 3,
-                           linegraphs = FALSE)
+name = '10K_Assortative'
+sample_network = readRDS(paste("Networks/",".rds", sep = name))
 
-sample_network = readRDS("networks/2K_assortative.rds")
-#saveRDS(sample_network, file = "networks/10K_mixed.rds")
+png(file=paste(name, '/adj.png', sep=''), width=600, height=600)
 plot_adjacency(sample_network$colored_adjacency)
+dev.off()
 
 igraph = sample_network$graph
 line_graph = line.graph(sample_network$graph)
 N_misclass = 8
 
-
 ### LINKCOMM ###
+png(file=paste(name, '/LC.png', sep=''), width=600, height=600)
 lm <- getLinkCommunities(sample_network$edges,  hcmethod = 'single')
+dev.off()
 lm
+
+png(file=paste(name, '/LCplot.png', sep=''), width=600, height=600)
 plot(lm, type = "graph")
+dev.off()
 
-# Node community centrality scores:
-node_centrality <- getCommunityCentrality(lm)
-node_centrality
-# Community connectedness scores:
-corectness <- getCommunityConnectedness(lm)
-corectness
-lm$pdmax
-
-membership_linkcomm = memberize_linkcomm(lm$clusters, sample_network$number_edges)
+membership_linkcomm = clean_membership(memberize_linkcomm(lm$clusters, sample_network$number_edges))
 mixed_membership_linkcomm = labelize(sample_network$node_edge, membership_linkcomm, mode = 'multi')
 colored_linkcomm = Color_Adjacency(sample_network$adjacency, sample_network$edges, membership_linkcomm)
+
+png(file=paste(name, '/LCadj.png', sep=''), width=600, height=600)
 plot_adjacency(colored_linkcomm)
+dev.off()
+
 
 ### Linkcomm mod ###
 bestlm = bestLinkcomm(lm, 50, line_graph, sample_network)
+
+png(file=paste(name, '/LCmodplot.png', sep=''), width=600, height=600)
 plot(bestlm, type = "graph")
+dev.off()
+
 bestlm$pdmax
-membership_linkcommmod = memberize_linkcomm(bestlm$clusters, sample_network$number_edges)
+membership_linkcommmod = clean_membership(memberize_linkcomm(bestlm$clusters, sample_network$number_edges))
 mixed_membership_linkcommmod = labelize(sample_network$node_edge, membership_linkcommmod, mode = 'multi')
 colored_linkcommmod = Color_Adjacency(sample_network$adjacency, sample_network$edges, membership_linkcommmod)
+
+png(file=paste(name, '/LCmodadj.png', sep=''), width=600, height=600)
 plot_adjacency(colored_linkcommmod)
-
-
-
-### Clique Percolation ###
-cp = cpAlgorithm(sample_network$adjacency, k=6, method = 'unweighted')
-membership_cp = memberize_linkcomm(cp$list.of.communities.labels, sample_network$number_nodes)
-
-
+dev.off()
 
 
 ### IMPERIAL ###
@@ -84,9 +86,9 @@ rm(le)
 n_cc = max(membership(cc))
 n_cd = max(membership(cd))
 n_ce = max(membership(ce))
-membership_c = as.double(membership(cc))
-membership_d = as.double(membership(cd))
-membership_e = as.double(membership(ce))
+membership_c = clean_membership(as.double(membership(cc)))
+membership_d = clean_membership(as.double(membership(cd)))
+membership_e = clean_membership(as.double(membership(ce)))
 
 
 # Adjacency plots
@@ -100,17 +102,22 @@ colored_e = Color_Adjacency(sample_network$adjacency,
                             sample_network$edges,
                             membership_e)
 
+png(file=paste(name, '/Cadj.png', sep=''), width=600, height=600)
 plot_adjacency(colored_c)
+dev.off()
+png(file=paste(name, '/Dadj.png', sep=''), width=600, height=600)
 plot_adjacency(colored_d)
+dev.off()
+png(file=paste(name, '/Eadj.png', sep=''), width=600, height=600)
 plot_adjacency(colored_e)
-
-rm(colored_c); rm(colored_d); rm(colored_e)
+dev.off()
 
 # mixed membership
 mixed_membership_c = labelize(sample_network$node_edge, membership_c, mode='multi')
 mixed_membership_d = labelize(sample_network$node_edge, membership_d, mode='multi')
 mixed_membership_e = labelize(sample_network$node_edge, membership_e, mode='multi')
 
+png(file=paste(name, '/Dplot.png', sep=''), width=600, height=600)
 plot(igraph,
      vertex.label=NA,
      vertex.shape="pie",
@@ -119,7 +126,9 @@ plot(igraph,
      edge.width=1,
      edge.color=membership(cc),
      main = 'mixed membership C method')
+dev.off()
 
+png(file=paste(name, '/Dplot.png', sep=''), width=600, height=600)
 plot(igraph,
      vertex.label=NA,
      vertex.shape="pie",
@@ -128,7 +137,9 @@ plot(igraph,
      edge.width=1,
      edge.color=membership(cd),
      main = 'mixed membership D method')
+dev.off()
 
+png(file=paste(name, '/Eplot.png', sep=''), width=600, height=600)
 plot(igraph,
      vertex.label=NA,
      vertex.shape="pie",
@@ -137,26 +148,35 @@ plot(igraph,
      edge.width=1,
      edge.color=membership(ce),
      main = 'mixed membership E method')
-
+dev.off()
 
 ### LINKSCAN* ###
+png(file=paste(name, '/pls.png', sep=''), width=600, height=600)
 LS_clustering = LinkScan(sample_network,
-                         mu = 0.7,
+                         mu = 0.6,
                          n_eps = 20,
                          n_critic = 5,
                          poly_approx = FALSE,
                          star= TRUE,
                          alpha = 0,
                          beta = 1)
+dev.off()
 
 LS_clustering$epsilon
-membershipLS = LS_clustering$membership
+membershipLS = clean_membership(LS_clustering$membership)
+write.csv(membershipLS, paste(name, '/lsmembership.csv', sep=''), row.names = FALSE)
+
 # Plot Linkscan adjacency
 colored_linkscan = Color_Adjacency(sample_network$adjacency, sample_network$edges, membershipLS)
+
+png(file=paste(name, '/LSadj.png', sep=''), width=600, height=600)
 plot_adjacency(colored_linkscan)
+dev.off()
+
 linkscan_membership = labelize(sample_network$node_edge, membershipLS, mode='multi')
 
 # Plot graph
+png(file=paste(name, '/LSplot.png', sep=''), width=600, height=600)
 plot(sample_network$graph,
      vertex.label=NA,
      vertex.shape="pie",
@@ -165,7 +185,7 @@ plot(sample_network$graph,
      edge.width=1,
      edge.color=membershipLS,
      main = 'mixed membership linkscan')
-
+dev.off()
 
 # Save the clusterings
 memberships = data.frame(membership_linkcomm,
@@ -174,7 +194,7 @@ memberships = data.frame(membership_linkcomm,
                          membership_d,
                          membership_e,
                          membershipLS)
-write.csv(memberships, paste("networks/",".rds", sep = name), row.names=FALSE)
+write.csv(memberships, paste("Memberships/",".csv", sep = name), row.names=FALSE)
 rm(memberships)
 ### Comparisons ###
 
@@ -182,10 +202,10 @@ rm(memberships)
 # Modularity
 mod_linkcomm = modularity(line_graph, membership_linkcomm+1)
 mod_linkcommmod = modularity(line_graph, membership_linkcommmod+1)
-mod_c = modularity(line_graph, membership_c)
-mod_d = modularity(line_graph, membership_d)
-mod_e = modularity(line_graph, membership_e)
-mod_linkscan = modularity(line_graph, membershipLS)
+mod_c = modularity(line_graph, membership_c+1)
+mod_d = modularity(line_graph, membership_d+1)
+mod_e = modularity(line_graph, membership_e+1)
+mod_linkscan = modularity(line_graph, membershipLS+1)
 modularities = c(mod_linkcomm,mod_linkcommmod, mod_c, mod_d, mod_e, mod_linkscan) 
 
 # Expected
@@ -214,18 +234,23 @@ v_mis_c = misclassification_vertex(sample_network, colored_c)
 v_mis_d = misclassification_vertex(sample_network, colored_d)
 v_mis_e = misclassification_vertex(sample_network, colored_e)
 v_mis_LS = misclassification_vertex(sample_network, colored_linkscan)
-v_missclassifications=c(v_mis_LC, v_mis_LCmod,v_mis_c, v_mis_d, v_mis_e, v_mis_LS) 
+v_missclassifications=c(v_mis_LC, v_mis_LCmod,v_mis_c, v_mis_d, v_mis_e, v_mis_LS)
+
+# Adjusted Rand Index
+sbm_membership = colored_to_membership(sample_network)
+ARI_LC = adj.rand.index(sbm_membership, membership_linkcomm)
+ARI_LCmod = adj.rand.index(sbm_membership, membership_linkcommmod)
+ARI_c = adj.rand.index(sbm_membership, membership_c)
+ARI_d = adj.rand.index(sbm_membership, membership_d)
+ARI_e = adj.rand.index(sbm_membership, membership_e)
+ARI_LS = adj.rand.index(sbm_membership, membershipLS)
+ARIs = c(ARI_LC, ARI_LCmod, ARI_c, ARI_d, ARI_e, ARI_LS)
 
 measurement = data.frame(Methods = c('Linkcomm','Linkcomm + mod', 'Imperial C','Imperial D', 'Imperial E', 'LinkScan*'),
                          Modularity = modularities,
                          Expectation_L2error = expectations,
                          Approx_misclassification = misclassifications,
-                         vertex_misclassifications = v_missclassifications)
+                         vertex_misclassifications = v_missclassifications,
+                         ARI = ARIs)
 measurement
-
-saveRDS(measurement, file = "measures/10K_mixed.rds")
-# In case
-#saveRDS(measurement, file = "10K_mixed_measures.rds")
-
-y = read.csv("measures_csv/10K_mixed.csv")
-xtable(y)
+write.csv(measurement, file = paste("Measurements/",".csv", sep = name), row.names = FALSE)

@@ -295,7 +295,7 @@ RandomSBM <- function(number_nodes,
   
   
   if(mode == 'Disassortative'){
-    blockprob = matrix(runif(number_blocks*number_blocks,intra[1], intra[2]), number_blocks, number_blocks)
+    blockprob = matrix(runif(number_blocks*number_blocks,0.01, 0.5), number_blocks, number_blocks)
     blockprob[lower.tri(blockprob)] <- t(blockprob)[lower.tri(blockprob)]
     diag(blockprob) = runif(number_blocks, inter[1], inter[2])
   }
@@ -307,7 +307,11 @@ RandomSBM <- function(number_nodes,
     for (i in 1:number_blocks) {
       for (j in 1:i) {
         if(temp[i,j] == 1){
-          blockprob[i,j]= runif(1, intra[1], intra[2])
+          if(i==j){
+            blockprob[i,j]= runif(1, 0.01, 0.5)
+          }else{
+            blockprob[i,j]= runif(1, 0.01, 0.25)
+          }
         }
         else{
           blockprob[i,j]= runif(1, inter[1], inter[2])

@@ -228,3 +228,18 @@ bestLinkcomm = function(lm, n=50, linegraph, sample_network){
   }
   return(bestlm)
 }
+
+
+colored_to_membership<-function(sample_network){
+  
+  edges = sample_network$edges
+  colored = sample_network$colored_adjacency
+  n_edges = dim(edges)[1]
+  membership=rep(0, n_edges)
+  
+  for(i in 1:n_edges){
+    membership[i] = colored[edges[i,1], edges[i,2]]
+  }
+  
+  return(membership)
+}
