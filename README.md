@@ -1,12 +1,10 @@
 # SDS2
 Master project
 
-main.R : Test with linkcomm and the Imperial group methods\\
+results.R : Create a SBM and apply the methods of edge clustering. It saves the plots, networks, memberhips vectors and measurments in the dedicated folder\
 
-mainLinkScan.R : Test on sample networks\\
+sbm.R : Functions that creates stochastic block models, adjacency matrices of line graph etc.\
 
-sbm.R : Functions that creates stochastic block models, line graphs adjacency etc. Contains also few function that helps the plot of networks\\
+LinkScan.R: Functions related to the LinkScan algorithm.\ 
 
-LinkScan.R: Functions related to the LinkScan algorithm\\
-
-findepsilon.R : Functions to related to the problem of finding the optimal epsilon for LinkScan\\
+test.r: Functions related to the measurement of quality of edge clustering.\
