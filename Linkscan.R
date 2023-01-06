@@ -9,12 +9,13 @@ Jaccard <- function(x, y){
 
 
 
-Link_similarities <- function(graph, selfloops = TRUE, star= FALSE, alpha = 0, beta = 1){
+Link_similarities <- function(graph, selfloops = FALSE, star= FALSE, alpha = 0, beta = 1){
   # Given a graph return the weighted line graph matrix 
   # (adjacency of the LinkSpace graph)
   # where the weights are given by the Jaccard similarity
   # of the two endpoints of the adjacent edges
-  # Self loops if we consider the similarity are define when both edges are the same
+  # Self loops if we consider the similarity are define when both edges are the same (do not use)
+  # alpha and beta are used in the sampling step of linkscan* alpha = 0 sets alpha to 2<d>
   
   adjacency = as.matrix(as_adjacency_matrix(graph))
   n_nodes = dim(adjacency)[1]
@@ -183,7 +184,7 @@ StructuralClustering <- function(adjacency_weigthed, LS_graph, epsilon, mu=0.7){
     if(v %in% core_nodes){
       dir.reach_v = as.integer(N_eps[[v]])
     }else{
-      dir.reach_v = as.integer(na.omit(N_eps[[v]][core_nodes]))
+      dir.reach_v = c()
     }
     dir.reach = append(dir.reach, list(dir.reach_v))
   }
@@ -288,11 +289,10 @@ similarity_chart <- function(LS_weigths, fraction_nodes = 1, mu=0.7){
 
 
 find_knee <- function(x, y, n_max, percent_inter = 0.05){
-  # Returns the points of the function y=f(x)
-  # that maximize the amplitude of the 1st derivative 
+  # Returns the points of the function y=f(x) that maximize the amplitude of the 1st derivative 
   # n_max : number of maximums returned
-  # percent_inter : radius of the interval where the others maximums can be selected.
-  # As a fraction of the total size of x
+  # percent_inter : radius of the interval where the others maximums can be selected
+  # as a fraction of the total size of x
   
   deriv1 = diff(y)/diff(x) # first derivative
   n_indices = length(x)
@@ -331,11 +331,19 @@ LinkScan <- function(sample_network,
                      poly_approx = FALSE,
                      star= TRUE,
                      alpha = 0,
-                     beta = 1){
+                     beta = 1,
+                     measure='NMI'){
+  # Apply the LinkScan algorithm on the SBM sample_network
+  # set mu, alpha and beta as the parameters of LinkScan (if alpha = 0, alpha = 2<d>)
+  # n_eps is the number of sampled epsilon to try
+  # n_critic is the number of points that maximize the curvature of the curve of similarity to try
+  # star = TRUE to use the LinkSCAN*
+  # measure = "ARI", "NMI", "modularity" is the quantity we wish to maximize after each try of epsilon
+  
   
   # Get the LS graph and adjacency
   print('Computation of the LinkSpace weights and sampling...')
-  linksim = Link_similarities(sample_network$graph, selfloops = TRUE, star, alpha, beta)
+  linksim = Link_similarities(sample_network$graph, selfloops = FALSE, star, alpha, beta)
   
   ### Try to find a epsilon ###
   # 100mu-percentile lowest similarity
@@ -370,9 +378,7 @@ LinkScan <- function(sample_network,
   possible_eps = c(abs(possible_eps),eps_y)
   possible_eps = sort(unique(possible_eps))
   
-  # Line graph to compare modularity
-  line_graph =line.graph(sample_network$graph)
-  
+  # Set the progress bar
   print('Structural clustering...')
   pb = txtProgressBar(min = 0,      # Minimum value of the progress bar
                        max = length(possible_eps)+1, # Maximum value of the progress bar
@@ -382,25 +388,46 @@ LinkScan <- function(sample_network,
   progress=0  
   setTxtProgressBar(pb, progress)
 
-  modularity=c(0)
+  # Objects to compare the measures
+  if(measure=='modularity'){
+    line_graph = line.graph(sample_network$graph)
+  }
+  if(measure=='ARI'){
+    sbm_membership = colored_to_membership(sample_network)
+  }
+  if(measure=='NMI'){
+    number_edges = sample_network$number_edges
+    df_mem_sbm = data.frame(1:number_edges,colored_to_membership(sample_network))
+  }
+  Measures=c(0)
+  
+  
+  
   # Try all the epsilons
   for (epsilon in possible_eps) {
     LS_clustering = StructuralClustering(linksim$LS_weights, linksim$LS_graph, epsilon, mu = mu)
-    mod = modularity(line_graph, LS_clustering$membership)
     
-    if(mod >= max(modularity)){
-      best_clustering = LS_clustering
+    if(measure=='modularity'){
+    meas = modularity(line_graph, LS_clustering$membership)
+    }
+    if(measure=='ARI'){
+      meas = adj.rand.index(sbm_membership, LS_clustering$membership)
+    }
+    if(measure=='NMI'){
+      df_ls = data.frame(1:number_edges,LS_clustering$membership)
+      meas = as.double(NMI(df_mem_sbm, df_ls))
     }
     
-    modularity = append(modularity, mod)
-    
+    if(meas >= max(Measures)){
+      best_clustering = LS_clustering
+    }
+    Measures = append(Measures, meas)
     
     progress = progress+1
     setTxtProgressBar(pb, progress)
   }
   
   # Get the best one
-  max_mod = max(modularity)
   epsilon = best_clustering$epsilon
   setTxtProgressBar(pb, progress+1)
   close(pb)

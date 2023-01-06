@@ -9,6 +9,9 @@ overlap_coefficient<- function(x, y){
 
 
 overlap_quality<- function(colored_adjacency){
+  # Returns the overlap quality of a SBM 
+  # NOT FINISHED
+  
   n_block = max(colored_adjacency)
   OQ = matrix(1,n_block, n_block)
   
@@ -25,6 +28,10 @@ overlap_quality<- function(colored_adjacency){
 
 
 clean_membership <- function(membership, threshold = 8){
+  # Given a membership vector set the label of 
+  # all communities that have less than 7 objects to 0
+  # And re sort the membership vector
+  
   mem_table = table(membership)
   new_membership_table = mem_table[mem_table >= threshold]
   communities = sort(as.double(names(new_membership_table)))
@@ -41,6 +48,9 @@ clean_membership <- function(membership, threshold = 8){
 }
 
 expected_communities <- function(sample_network, as_vertex=TRUE){
+  # Given a SBM sample_network returns the vector that store the expected number of communities
+  # of each vertex
+  
   blockprob = sample_network$block_prob
   nodes_partition = sample_network$nodes_partition
   n_blocks = length(nodes_partition)
@@ -92,6 +102,8 @@ expected_communities <- function(sample_network, as_vertex=TRUE){
 
 
 number_communities <- function(mixed_membership){
+  # Count the number of community of each entries of the mixed_membership
+  
   n_vertex = length(mixed_membership)
   n_communities = rep(0, n_vertex)
   
@@ -105,6 +117,9 @@ number_communities <- function(mixed_membership){
 misclassification_edges <- function(sample_network,
                                     colored_clustering,
                                     n_com = 8){
+  # Returns a approximate misclassification rate of the edge clustering
+  # n_com correspond to the maximum number of community to consider
+  
   
   n_edges = sample_network$number_edges
   colored_adj = sample_network$colored_adjacency
@@ -156,6 +171,8 @@ misclassification_edges <- function(sample_network,
 
 misclassification_vertex <- function(sample_network,
                                     colored_clustering){
+  # Returns a approximate misclassification rate of the diagonal community of the SBM
+  
   
   n_vertex = sample_network$number_nodes
   nodes_partition = sample_network$nodes_partition
@@ -203,6 +220,9 @@ misclassification_vertex <- function(sample_network,
 
 
 plot_adjacency <- function(colored_adj){
+  # Plot undirected adjacaceny matrix with each integer corresponding to a community
+  
+  
   n_val = max(colored_adj)
   to_plot = t(apply(colored_adj, 2, rev))
   colors = c( 'white', colorRampPalette((brewer.pal(min(c(9,n_val)), name = 'Set1')))(n_val) )
@@ -215,6 +235,11 @@ plot_adjacency <- function(colored_adj){
 }
 
 bestLinkcomm = function(lm, n=50, linegraph, sample_network){
+  # Given a linkcomm object with cutoff point p find the new cutoff point in the interval [0.9p, 1.1p]
+  # that maximize the modularity on the linegraph of the SBM sample_network
+  # n is the number of cutoff point to try
+  
+  
   cutoffpoints = seq(from = .9*lm$pdmax, to= 1.1*lm$pdmax, length.out = 50)
   modularities = c(0)
   for(point in cutoffpoints){

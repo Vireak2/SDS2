@@ -1,7 +1,7 @@
 SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE, linegraphs=FALSE){
   # Given a vector that set the number of nodes on each block and the matrix of edges probabilities
   # build a stochastic block model including the number of nodes, nodes partition,matrix of edges probabilities, adjacency matrix, degree vector and edge set
-  # It also return the line graph adjacency matrix and the 'D' and 'E' versions of it
+  # It also return the line graph adjacency matrix and the 'D' and 'E1' versions of it if linegraph = TRUE
   # The function works for directed graphs, for undirected graph the lower triangular matrix of edges probabilities is considered
   
   # Define the number of community and total number of nodes 
@@ -180,6 +180,9 @@ SBM <- function(nodes_partition, block_prob, directed=FALSE, loops=FALSE, linegr
 
 
 get_linegraph <- function(sample_network, type){
+  # Return the adjacency matrix of the given network
+  # type = 'C', 'D' or 'E' to choose among the different adjacency matrix
+  
   number_nodes = sample_network$number_nodes
   number_edges = sample_network$number_edges
   node_edge = sample_network$node_edge
@@ -242,6 +245,8 @@ get_linegraph <- function(sample_network, type){
 
 
 edges_from_adjacency <- function(adjacency, directed = FALSE){
+  # Return the edge list given an adjacency matrix
+  
   number_nodes = dim(adjacency)[1]
   # Declare the edge set
   edges = matrix(0, 0, 2)
@@ -284,7 +289,9 @@ RandomSBM <- function(number_nodes,
                       linegraphs=FALSE){
 
   # Returns a SBM with approximately number_nodes nodes and  number_blocks blocks
-  # the SBM can be 'Assortative', 'Disassortative' or 'Mixed'
+  # inter is the interval of which the probabilities of sparse edge community are sampled
+  # intra is the interval of which the probabilities of dense edge community are sampled
+  # the SBM can be 'Assortative', 'Disassortative' or 'Mixed
   # if mode_node = 'random' the node distribution follows a poisson law with mean number_nodes/number_blocks 
   
   if(mode == 'Assortative'){
@@ -323,8 +330,8 @@ RandomSBM <- function(number_nodes,
   
   if(mode == 'Overlap'){
     blockprob = matrix(runif(number_blocks*number_blocks,inter[1], inter[2]), number_blocks, number_blocks)
+    blockprob[,number_blocks] = runif(number_blocks, log(number_nodes)*8/number_nodes,log(number_nodes)*10/number_nodes)
     diag(blockprob) = runif(number_blocks, intra[1], intra[2])
-    blockprob[,number_blocks] = runif(number_blocks, log(number_nodes)*14/number_nodes,log(number_nodes)*15/number_nodes)
     blockprob[lower.tri(blockprob)] <- t(blockprob)[lower.tri(blockprob)]
   }
   
@@ -346,7 +353,7 @@ RandomSBM <- function(number_nodes,
 labelize <- function(incidence, edge_membership, mode='most'){
   # Compute the node-membership given a edge clustering 
   # mode='most': returns the membership of the community with most adjacent edges
-  # mode == 'multi': retuns the mixed membership as a proportion of edges adjacent to the vertex
+  # mode == 'multi': returns the mixed membership as a proportion of edges adjacent to the vertex
   
   n_vertex = dim(incidence)[1]
   n_community = max(edge_membership)
@@ -389,8 +396,8 @@ labelize <- function(incidence, edge_membership, mode='most'){
 
 
 Color_Adjacency <- function(adjacency, edge_list, edge_membership){
-  # Assign an integer to the non zero elements of the adjacency matrix
-  # corresponding the community of the edges
+  # Assign an integer to the non zero elements of the adjacency matrix corresponding the community of the edges
+  
   n_nodes = length(edge_membership)
   n_vertex = dim(adjacency)[1]
   colored = matrix(0,n_vertex, n_vertex)
@@ -405,6 +412,8 @@ Color_Adjacency <- function(adjacency, edge_list, edge_membership){
 }
 
 memberize_linkcomm <- function(lmclusters, n_edges){
+  # Given a cluster of linkcomm object retruns the cluster in a vector form
+  
   n_clust = length(lmclusters)
   membership = rep(0, n_edges)
   
